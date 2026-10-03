@@ -1,0 +1,128 @@
+.page {
+  min-height: 100vh;
+  padding: 4rem 1.5rem;
+}
+
+.panel {
+  width: min(100%, 46rem);
+  margin: 0 auto;
+  padding: clamp(1.5rem, 5vw, 3rem);
+  border: 1px solid #dce3eb;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 1.25rem 3rem rgb(25 43 67 / 8%);
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: #315f9b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0.75rem;
+  font-size: clamp(2rem, 6vw, 3rem);
+  letter-spacing: -0.04em;
+}
+
+.intro,
+.muted {
+  color: #566477;
+  line-height: 1.6;
+}
+
+.item-form {
+  margin-top: 2rem;
+}
+
+.item-form label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+input,
+button {
+  min-height: 2.8rem;
+  border-radius: 0.5rem;
+  font: inherit;
+}
+
+input {
+  min-width: 0;
+  flex: 1;
+  padding: 0 0.8rem;
+  border: 1px solid #bdc8d5;
+}
+
+button {
+  padding: 0 1rem;
+  border: 0;
+  background: #245fa8;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.items {
+  margin-top: 2.5rem;
+}
+
+.items h2 {
+  font-size: 1.2rem;
+}
+
+.items ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-top: 1px solid #e8edf2;
+}
+
+.items time {
+  color: #68778a;
+  font-size: 0.8rem;
+}
+
+.error {
+  margin-top: 1rem;
+  color: #b42318;
+}
+
+@media (max-width: 34rem) {
+  .page {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .form-row,
+  .items li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

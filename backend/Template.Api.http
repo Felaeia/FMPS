@@ -1,0 +1,13 @@
+@TemplateApi_HostAddress = https://localhost:7022
+
+GET {{TemplateApi_HostAddress}}/api/items
+Accept: application/json
+
+###
+
+POST {{TemplateApi_HostAddress}}/api/items
+Content-Type: application/json
+
+{
+  "name": "Example item"
+}
