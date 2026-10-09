@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent } from "react";
 import DropdownCard from "../../common/dropDownCard";
 import { Tag } from "../../common/tags";
 import { variantFor } from "./constant/tags";
+import { useNavigate } from "react-router-dom";
 
 type Frequency = "15 min" | "30 min" | "Hourly" | "Daily";
 const FREQUENCIES: Frequency[] = ["15 min", "30 min", "Hourly", "Daily"];
@@ -232,7 +233,7 @@ function PageSettings({
 
 export default function Scoutline_MonitoredPage() {
   const [pages, setPages] = useState<MonitoredPage[]>(INITIAL_PAGES);
-
+  const navigate = useNavigate();
   // Counts shown under the title; "live" means not paused.
   const liveCount = pages.filter((p) => !p.paused).length;
 
@@ -262,6 +263,7 @@ export default function Scoutline_MonitoredPage() {
           <button
             type="button"
             className="rounded-xl bg-orange-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-orange-800"
+            onClick={() => navigate("/addPage")}
           >
             + Add page
           </button>

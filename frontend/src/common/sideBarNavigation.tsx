@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { Sun, Moon, Eye, List } from "lucide-react";
+import { Sun, Moon, Eye, List, Plus } from "lucide-react";
 import { useTheme, type Theme } from "../context/ThemeContext.types";
 
 export interface NavItem {
@@ -74,7 +74,7 @@ export const SideBarNavigation: React.FC<SideBarNavigationProps> = () => {
   const navItems: NavItem[] = [
     { path: "/feed", label: "Feed", icon: <Eye size={18} /> },
     { path: "/monitored", label: "Monitored pages", icon: <List size={18} /> },
-    { path: "/addPage", label: "Add Page", icon: <List size={18} /> },
+    { path: "/addPage", label: "Add Page", icon: <Plus size={18} /> },
   ];
 
   return (
