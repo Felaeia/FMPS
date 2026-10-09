@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Scoutline_Layout from "./components/feature/Scoutline/util/Scoutline.helpers";
 import Scoutline_Feed from "./components/feature/Scoutline/Scoutline_Feed";
-import PlaceholderPage from "./components/feature/Scoutline/PlaceholderPage";
+
 import PlaceholderPage1 from "./components/feature/Scoutline/PlaceholderPage copy";
 import { ThemeProvider } from "./context/ThemeContext";
+import Scoutline_MonitoredPage from "./components/feature/Scoutline/Scoutline_MonitoredPage";
 
 export default function App() {
   return (
@@ -15,10 +16,7 @@ export default function App() {
             <Route index element={<Navigate to="/feed" replace />} />
 
             <Route path="feed" element={<Scoutline_Feed />} />
-            <Route
-              path="monitored"
-              element={<PlaceholderPage title="Monitored Pages" />}
-            />
+            <Route path="monitored" element={<Scoutline_MonitoredPage />} />
             <Route
               path="addPage"
               element={<PlaceholderPage1 title="Add Page" />}
