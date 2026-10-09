@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Scoutline_Layout from "./components/feature/Scoutline/util/Scoutline.helpers";
-import Scoutline_Feed from "./components/feature/Scoutline/Scoutline_Feed";
+import Scoutline_Layout from "./feature/Scoutline/util/Scoutline.helpers";
+import Scoutline_Feed from "./feature/Scoutline/Scoutline_Feed";
 
-import PlaceholderPage1 from "./components/feature/Scoutline/PlaceholderPage copy";
 import { ThemeProvider } from "./context/ThemeContext";
-import Scoutline_MonitoredPage from "./components/feature/Scoutline/Scoutline_MonitoredPage";
+import Scoutline_MonitoredPage from "./feature/Scoutline/Scoutline_MonitoredPage";
+import Scoutline_AddPage from "./feature/Scoutline/Scoutline_AddPage";
 
 export default function App() {
   return (
@@ -19,7 +19,7 @@ export default function App() {
             <Route path="monitored" element={<Scoutline_MonitoredPage />} />
             <Route
               path="addPage"
-              element={<PlaceholderPage1 title="Add Page" />}
+              element={<Scoutline_AddPage onComplete={() => {}} />}
             />
           </Route>
         </Routes>

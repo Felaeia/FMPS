@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card } from "../../../components/common/card";
+import { Card } from "../../common/card";
 import {
   FEED_FILTERS,
   filterPosts,
@@ -9,7 +9,7 @@ import {
   getFeedSubtitle,
   type FeedFilter,
   type FeedPost,
-} from "../Scoutline/util/Scoutline_Feed.helpers";
+} from "./util/Scoutline_Feed.helpers";
 
 // Temporary data matching the design. Replace with a fetch (same
 // loading/AbortController pattern the starter page used) once the feed API

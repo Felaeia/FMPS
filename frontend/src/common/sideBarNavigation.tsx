@@ -1,7 +1,7 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { Sun, Moon, Eye, List } from "lucide-react";
-import { useTheme, type Theme } from "../../context/ThemeContext.types";
+import { useTheme, type Theme } from "../context/ThemeContext.types";
 
 export interface NavItem {
   path: string;
