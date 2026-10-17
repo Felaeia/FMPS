@@ -1,39 +1,14 @@
-# React + .NET CQRS Template
-
-A reusable starter for full-stack projects using React, TypeScript, and
-ASP.NET Core with CQRS and MediatR. The repository contains a runnable Items
-example and a separate ToDo frontend feature scaffold that you can adapt to
-your project.
-
 ## Technology
 
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS
 - **Backend:** ASP.NET Core 8 Web API, MediatR
-- **CQRS example:** item queries and a create-item command
+- **Database:** Supabase
+- **Agent for Automation:** Fara-7B
+- **Automated Scraping Agent:** Playwright
 
 ## Repository layout
 
 ```text
-frontend/
-  src/
-    api.ts
-    App.tsx
-    components/
-      ui/                             # Low-level design-system primitives
-      common/                         # Shared, domain-neutral UI
-      global/                         # Application shell and global UI
-      feature/
-        ToDo/
-          api/                        # Feature API boundary placeholder
-          componentPlaceholder.tsx    # Example feature component
-          constant/                   # Feature constants placeholder
-          data/                       # Fixtures and static data placeholder
-          hooks/useTodos.ts           # Feature state and actions
-          lib/                        # Feature helpers placeholder
-          provider/                   # Feature context placeholder
-          services/todoService.ts     # ToDo API service starter
-          types/todo.ts
-          util/utilPlaceholder.ts
 backend/
   Controllers/ItemsController.cs
   Application/Items/
@@ -43,21 +18,27 @@ backend/
     IItemRepository.cs
   Domain/Items/Item.cs
   Infrastructure/Items/InMemoryItemRepository.cs
+frontend/
+  src/
+    api.ts
+    App.tsx
+    ui/                             # Low-level design-system primitives
+    common/                         # Shared, domain-neutral UI
+    global/                         # Application shell and global UI
+    feature/
+      Scoutline/
+        components/
+        api/                        # Feature API boundary placeholder
+        componentPlaceholder.tsx    # Example feature component
+        constant/                   # Feature constants placeholder
+        data/                       # Fixtures and static data placeholder
+        hooks/useTodos.ts           # Feature state and actions
+        lib/                        # Feature helpers placeholder
+        provider/                   # Feature context placeholder
+        services/todoService.ts     # ToDo API service starter
+        types/todo.ts
+        util/utilPlaceholder.ts
 ```
-
-Feature-specific code belongs under `components/feature/<FeatureName>`.
-`ui` is for low-level design primitives such as buttons, inputs, and dialogs.
-`common` is for higher-level reusable components composed from those
-primitives; `global` is for app-wide shell components such as navigation and
-global status UI.
-
-The ToDo frontend files are a scaffold and are **not wired into the current
-screen**. They expect a future `GET /api/todos` and `POST /api/todos` API. The
-working end-to-end example is Items:
-
-- `GET /api/items` — query all items
-- `GET /api/items/{id}` — query one item
-- `POST /api/items` — create an item
 
 ## Run locally
 
@@ -122,16 +103,3 @@ Run the backend build from the repository root:
 ```powershell
 dotnet build backend\Template.Api.csproj
 ```
-
-## Create a project from this template
-
-1. Use GitHub's **Use this template** action or clone the repository into your
-   own project repository.
-2. Rename the repository, API assembly, namespaces, and sample features to
-   match your domain.
-3. Configure API URLs, CORS origins, and environment-specific settings.
-4. Implement the domain, database, and project-specific security and tests.
-
-Keep local `.env` files, credentials, and production connection strings out of
-source control. Use ASP.NET Core user secrets during development and a secure
-deployment secret store for deployed environments.
