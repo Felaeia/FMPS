@@ -18,10 +18,9 @@ backend/
     IItemRepository.cs
   Domain/Items/Item.cs
   Infrastructure/Items/InMemoryItemRepository.cs
+
 frontend/
   src/
-    api.ts
-    App.tsx
     ui/                             # Low-level design-system primitives
     common/                         # Shared, domain-neutral UI
     global/                         # Application shell and global UI
@@ -31,18 +30,20 @@ frontend/
         api/                        # Feature API boundary placeholder
         componentPlaceholder.tsx    # Example feature component
         constant/                   # Feature constants placeholder
-        data/                       # Fixtures and static data placeholder
-        hooks/useTodos.ts           # Feature state and actions
-        lib/                        # Feature helpers placeholder
-        provider/                   # Feature context placeholder
-        services/todoService.ts     # ToDo API service starter
-        types/todo.ts
-        util/utilPlaceholder.ts
+        types/                      # Typescript types and shared interfaces
+        util/                       # Pure utility functions
+    api.ts
+    App.css
+    App.tsx
+    index.css
+    main.tsx
 ```
 
 ## Run locally
 
-Prerequisites: Node.js with npm and the .NET 8 SDK.
+Prerequisites: 
+- Node.js with npm and the .NET 8 SDK.
+- Install WSL2 (For Windows)
 
 ### 1. Start the API
 
@@ -77,17 +78,18 @@ origins with standard ASP.NET Core configuration, for example:
 $env:Cors__AllowedOrigins__0 = "https://your-frontend.example"
 ```
 
-## CQRS flow
+### 3. Clone the `Fara` Agent and Run
+## 1. Clone repository
+git clone https://github.com/microsoft/fara.git
+cd fara
 
-The Items example keeps HTTP concerns in the controller, sends query and
-command requests through MediatR, and puts persistence behind
-`IItemRepository`. The current `InMemoryItemRepository` makes the starter
-runnable without a database; its data is lost when the API restarts.
+## 2. Setup environment in WSL
+python3 -m venv .venv 
+source .venv/bin/activate
+pip install -e .
+pip install vllm
+playwright install
 
-Replace the in-memory repository with the persistence approach required by
-your project while keeping read and write requests separate. Add project
-requirements such as database migrations, authentication, authorization,
-logging, and automated tests before production use.
 
 ## Common commands
 
