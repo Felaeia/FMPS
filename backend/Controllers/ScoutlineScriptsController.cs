@@ -188,7 +188,8 @@ public sealed class ScoutlineScriptsController(
         CancellationToken cancellationToken)
     {
         var baseUrl = configuration["Fara:BaseUrl"] ?? "http://localhost:5000";
-        var prompt = $"Configure the approved Facebook scraper for this request. Return only JSON with exactly two fields: PAGE_URL (string) and MAX_POSTS (number). Copy the values exactly; do not write or modify code. PAGE_URL: {request.PageUrl}\nMAX_POSTS: {request.MaxPosts}";
+        var prompt = 
+          $"Configure the approved Facebook scraper for this request. Return only JSON with exactly two fields: PAGE_URL (string) and MAX_POSTS (number). Copy the values exactly; do not write or modify code. PAGE_URL: {request.PageUrl}\nMAX_POSTS: {request.MaxPosts}";
         using var response = await httpClientFactory.CreateClient("Fara").PostAsJsonAsync(
             $"{baseUrl.TrimEnd('/')}/v1/chat/completions",
             new
