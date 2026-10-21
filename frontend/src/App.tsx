@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Scoutline_Layout from "./feature/Scoutline/util/Scoutline.helpers";
 import Scoutline_Feed from "./feature/Scoutline/Scoutline_Feed";
@@ -5,8 +6,11 @@ import Scoutline_Feed from "./feature/Scoutline/Scoutline_Feed";
 import { ThemeProvider } from "./context/ThemeContext";
 import Scoutline_MonitoredPage from "./feature/Scoutline/Scoutline_MonitoredPage";
 import Scoutline_AddPage from "./feature/Scoutline/Scoutline_AddPage";
+import type { NewPageDraft } from "./feature/Scoutline/constant/addPage";
 
 export default function App() {
+  const [addedPages, setAddedPages] = useState<NewPageDraft[]>([]);
+
   return (
     <ThemeProvider>
       <BrowserRouter>
@@ -16,10 +20,19 @@ export default function App() {
             <Route index element={<Navigate to="/feed" replace />} />
 
             <Route path="feed" element={<Scoutline_Feed />} />
-            <Route path="monitored" element={<Scoutline_MonitoredPage />} />
+            <Route
+              path="monitored"
+              element={<Scoutline_MonitoredPage addedPages={addedPages} />}
+            />
             <Route
               path="addPage"
-              element={<Scoutline_AddPage onComplete={() => {}} />}
+              element={
+                <Scoutline_AddPage
+                  onComplete={(draft) =>
+                    setAddedPages((pages) => [...pages, draft])
+                  }
+                />
+              }
             />
           </Route>
         </Routes>

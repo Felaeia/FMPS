@@ -1,11 +1,14 @@
 import StagePanel from "../../../common/stagePanel";
 import { Tag } from "../../../common/tags";
 import type { PreviewStatus } from "../constant/addPage";
+import type { ScrapedPost } from "../api/addPageApi";
 
 type PreviewStepProps = {
   locked: boolean;
   pageName: string;
   includeImages: boolean;
+  posts: ScrapedPost[];
+  postCount: number;
   log: string[];
   status: PreviewStatus;
   onApprove: () => void;
@@ -16,6 +19,8 @@ export default function PreviewStep({
   locked,
   pageName,
   includeImages,
+  posts,
+  postCount,
   log,
   status,
   onApprove,
@@ -35,28 +40,51 @@ export default function PreviewStep({
         ))}
       </div>
 
-      {/* Placeholder sample until the Scraper Agent returns a real post. */}
       {status === "done" && (
         <>
-          <div className="mb-4 rounded-2xl border border-orange-100 p-4">
-            <Tag
-              label={`1 post · ${includeImages ? "2 images · " : ""}sample data`}
-              variant="blue"
-            />
-            <h3 className="mt-2 text-base font-semibold text-stone-800">
-              Sample post from {pageName}
-            </h3>
-            <p className="text-sm text-stone-500">
-              Oct 5, 2026 · 128 reactions · Doors open Saturday at 8am with 40
-              local stalls and live music.
+          {posts[0] ? (
+            <article className="mb-4 rounded-2xl border border-orange-100 p-4">
+              <Tag
+                label={`${postCount} ${postCount === 1 ? "post" : "posts"} scraped · live preview`}
+                variant="blue"
+              />
+              <h3 className="mt-2 text-base font-semibold text-stone-800">
+                {posts[0].title || `Latest post from ${pageName}`}
+              </h3>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-stone-500">
+                {posts[0].description || "No post text was found."}
+              </p>
+              {includeImages && posts[0].media.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {posts[0].media.map((item, index) => {
+                    const src = item.type === "video" ? item.poster : item.url;
+                    return src ? (
+                      <img
+                        key={`${src}-${index}`}
+                        src={src}
+                        alt="Post media"
+                        className="h-[105px] w-[150px] rounded-xl object-cover"
+                      />
+                    ) : null;
+                  })}
+                </div>
+              )}
+              {posts[0].url && (
+                <a
+                  href={posts[0].url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-block text-sm font-medium text-orange-700 underline"
+                >
+                  Open post
+                </a>
+              )}
+            </article>
+          ) : (
+            <p className="mb-4 rounded-2xl border border-orange-100 p-4 text-sm text-stone-500">
+              The scraper completed, but no posts were available to preview.
             </p>
-            {includeImages && (
-              <div className="mt-3 flex flex-wrap gap-2" aria-hidden="true">
-                <div className="h-[105px] w-[150px] rounded-xl bg-gradient-to-br from-indigo-400 to-violet-600" />
-                <div className="h-[105px] w-[150px] rounded-xl bg-gradient-to-br from-orange-400 to-rose-500" />
-              </div>
-            )}
-          </div>
+          )}
 
           <div className="flex flex-wrap gap-3">
             <button

@@ -4,20 +4,22 @@ import type { ScriptStatus } from "../constant/addPage";
 
 const STATUS_TEXT: Record<ScriptStatus, string> = {
   idle: "Waiting for script…",
-  writing: "Script Agent is writing…",
-  ready: "Ready for your review. Edit freely.",
+  writing: "Fara is configuring the approved scraper template…",
+  ready: "Ready for review. Only the page URL and post limit were customized.",
+  error: "Fara could not generate the script.",
 };
 
 const STATUS_DOT: Record<ScriptStatus, string> = {
   idle: "bg-stone-300",
   writing: "animate-pulse bg-amber-500",
   ready: "bg-emerald-600",
+  error: "bg-red-500",
 };
 
 type ScriptStepProps = {
   locked: boolean;
   script: string;
-  onScriptChange: (script: string) => void;
+  scriptFileName: string | null;
   status: ScriptStatus;
   onApprove: () => void;
 };
@@ -25,7 +27,7 @@ type ScriptStepProps = {
 export default function ScriptStep({
   locked,
   script,
-  onScriptChange,
+  scriptFileName,
   status,
   onApprove,
 }: ScriptStepProps) {
@@ -45,15 +47,14 @@ export default function ScriptStep({
           <i className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
           <i className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
           <i className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-          <span className="ml-2 opacity-70">scout.config</span>
+          <span className="ml-2 opacity-70">scrape-facebook.mjs · Fara template</span>
         </header>
         <textarea
           ref={textareaRef}
           value={script}
-          // Read-only while the agent writes so the user's edits can't be
-          // overwritten by the next chunk of text.
-          readOnly={status === "writing"}
-          onChange={(e) => onScriptChange(e.target.value)}
+          // Keep the approved scraper structure intact; generation only
+          // changes its page URL and post limit.
+          readOnly
           spellCheck={false}
           aria-label="Generated script"
           className="h-56 w-full resize-none bg-transparent p-3.5 font-mono text-xs leading-relaxed text-stone-100 focus:outline-none"
@@ -65,10 +66,16 @@ export default function ScriptStep({
         {STATUS_TEXT[status]}
       </p>
 
+      {scriptFileName && (
+        <p className="-mt-1 mb-3 break-all text-xs text-stone-500">
+          Saved to frontend/agent/scripts/repository/{scriptFileName}
+        </p>
+      )}
+
       <button
         type="button"
         onClick={onApprove}
-        disabled={status !== "ready"}
+        disabled={status !== "ready" || locked}
         className="h-11 rounded-xl bg-orange-700 px-6 text-sm font-semibold text-white shadow-md transition hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Approve &amp; run preview

@@ -123,7 +123,7 @@ $env:Cors__AllowedOrigins__0 = "https://your-frontend.example"
   ## 4. Get and Quantize Fara-7B to 8GB [Q4_K_M]
     mkdir -p ~/models
     # download
-      hf download {{IE_30000}}microsoft{{/IE_30000}}/Fara-7B --local-dir ~/models/Fara-7B-hf
+      hf download microsoft/Fara-7B --local-dir ~/models/Fara-7B-hf
     # convert - for Qwen2.5-VL this creates 2 files: model + mmproj for vision
       python convert_hf_to_gguf.py ~/models/Fara-7B-hf --outfile ~/models/fara-7b-f16.gguf
     # quantize to Q4_K_M - this is what gets you to 8GB
@@ -142,6 +142,16 @@ $env:Cors__AllowedOrigins__0 = "https://your-frontend.example"
   
   ## 7. Test Fara Agent
     python -m fara.run_fara --task "what is one plus one"
+
+  ### Add a monitored Facebook page
+
+  Keep the Fara-compatible llama.cpp server running at `http://localhost:5000` while
+  using Add a page. The backend asks Fara for the requested settings, then uses
+  `frontend/agent/scripts/scrape-facebook.mjs` as the immutable scraper template;
+  it only substitutes the approved page URL and post limit. Generated scripts are
+  saved under `frontend/agent/scripts/repository/`. The preview endpoint executes
+  that saved script with Node.js and returns its real `posts.json` output. Set
+  `Fara__BaseUrl` if the backend cannot reach the model at the default address.
 
 
 ## Common commands

@@ -8,6 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMediatR(configuration =>
     configuration.RegisterServicesFromAssemblyContaining<GetItemsQuery>());
 builder.Services.AddSingleton<IItemRepository, InMemoryItemRepository>();
+builder.Services.AddHttpClient("Fara", client =>
+    client.Timeout = TimeSpan.FromSeconds(90));
 
 var frontendOrigins =
     builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];

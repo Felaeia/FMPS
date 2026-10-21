@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ConfigureStep from "./components/configureStep";
 import ScriptStep from "./components/scriptStep";
 import PreviewStep from "./components/previewStep";
@@ -12,10 +13,14 @@ import {
   type ScriptStatus,
 } from "./constant/addPage";
 import {
-  buildScript,
   normalizeUrl,
   resolveName,
 } from "../Scoutline/util/Scoutline_AddPage.helpers";
+import {
+  generateScraperScript,
+  runScraperPreview,
+  type ScrapedPost,
+} from "./api/addPageApi";
 
 type Props = {
   // Called when the user approves the preview. The parent adds the page to
@@ -55,26 +60,27 @@ export default function Scoutline_AddPage({
   const [config, setConfig] = useState<AddPageConfig>(INITIAL_CONFIG);
   const [stage, setStage] = useState<AddPageStage>(0);
   const [script, setScript] = useState("");
+  const [scriptFileName, setScriptFileName] = useState<string | null>(null);
   const [scriptStatus, setScriptStatus] = useState<ScriptStatus>("idle");
   const [previewLog, setPreviewLog] = useState<string[]>([]);
   const [previewStatus, setPreviewStatus] = useState<PreviewStatus>("idle");
+  const [previewPosts, setPreviewPosts] = useState<ScrapedPost[]>([]);
+  const [previewPostCount, setPreviewPostCount] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
+  const navigate = useNavigate();
 
-  // Timers for the simulated agents. They live in refs so a new run, a
-  // revision, or leaving the page can cancel ticks that haven't fired yet.
-  const typingTimer = useRef<number | undefined>(undefined);
-  const previewTimers = useRef<number[]>([]);
+  // Abort network work if the user starts over or leaves the flow.
+  const requestAbort = useRef<AbortController | null>(null);
 
   function cancelAgents() {
-    window.clearInterval(typingTimer.current);
-    previewTimers.current.forEach((id) => window.clearTimeout(id));
-    previewTimers.current = [];
+    requestAbort.current?.abort();
+    requestAbort.current = null;
   }
 
   // Stop pending timers on unmount so they don't set state afterwards.
   useEffect(() => {
     return () => {
-      window.clearInterval(typingTimer.current);
-      previewTimers.current.forEach((id) => window.clearTimeout(id));
+      requestAbort.current?.abort();
     };
   }, []);
 
@@ -84,57 +90,76 @@ export default function Scoutline_AddPage({
 
   // Step 1 -> 2. Regenerating restarts from stage 1 and discards any preview,
   // since a new script invalidates the earlier sample.
-  function handleGenerate() {
+  async function handleGenerate() {
     cancelAgents();
-    const fullScript = buildScript(config);
+    const controller = new AbortController();
+    requestAbort.current = controller;
     setStage(1);
     setScript("");
+    setScriptFileName(null);
     setScriptStatus("writing");
     setPreviewStatus("idle");
     setPreviewLog([]);
+    setPreviewPosts([]);
+    setPreviewPostCount(0);
+    setErrorMessage("");
 
-    // Simulated Script Agent: reveal the script a few characters at a time.
-    // Replace with the real agent call when the backend exists.
-    let shown = 0;
-    typingTimer.current = window.setInterval(() => {
-      shown += 3;
-      setScript(fullScript.slice(0, shown));
-      if (shown >= fullScript.length) {
-        window.clearInterval(typingTimer.current);
-        setScriptStatus("ready");
+    try {
+      const generated = await generateScraperScript(
+        normalizeUrl(config.url.trim()),
+        config.postsPerRun,
+        controller.signal,
+      );
+      setScript(generated.script);
+      setScriptFileName(generated.fileName);
+      setScriptStatus("ready");
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setScriptStatus("error");
+        setErrorMessage(
+          error instanceof Error ? error.message : "Fara script generation failed.",
+        );
       }
-    }, 14);
+    } finally {
+      if (requestAbort.current === controller) requestAbort.current = null;
+    }
   }
 
-  // Step 2 -> 3: run the approved script once and show one sample post.
-  function handleApproveScript() {
+  // Step 2 -> 3: run the approved repository script and show its real output.
+  async function handleApproveScript() {
+    if (!scriptFileName) return;
     cancelAgents();
+    const controller = new AbortController();
+    requestAbort.current = controller;
     setStage(2);
-    setPreviewLog([]);
+    setErrorMessage("");
+    setPreviewPosts([]);
+    setPreviewPostCount(0);
+    setPreviewLog(["Starting the generated scraper…"]);
     setPreviewStatus("running");
 
-    // Simulated Scraper Agent log. Replace with the real preview run.
-    const lines = [
-      "Scraper Agent online",
-      "Opening page…",
-      "Running your approved script…",
-      "Extracting 1 post…",
-      ...(config.includeImages
-        ? ["Found 2 images in post", "Downloading images…"]
-        : []),
-      "Done. Output ready for review",
-    ];
-    lines.forEach((line, i) => {
-      previewTimers.current.push(
-        window.setTimeout(
-          () => setPreviewLog((prev) => [...prev, line]),
-          i * 600,
-        ),
+    try {
+      const result = await runScraperPreview(scriptFileName, controller.signal);
+      const posts = result.snapshot.posts ?? [];
+      setPreviewPosts(posts);
+      setPreviewPostCount(result.snapshot.count ?? posts.length);
+      setPreviewLog(
+        result.standardOutput
+          ? result.standardOutput.split(/\r?\n/).filter(Boolean)
+          : [`Scraper completed with ${posts.length} posts.`],
       );
-    });
-    previewTimers.current.push(
-      window.setTimeout(() => setPreviewStatus("done"), lines.length * 600 + 150),
-    );
+      setPreviewStatus("done");
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        const message =
+          error instanceof Error ? error.message : "The scraper preview failed.";
+        setErrorMessage(message);
+        setPreviewLog([message]);
+        setPreviewStatus("error");
+      }
+    } finally {
+      if (requestAbort.current === controller) requestAbort.current = null;
+    }
   }
 
   // "Not quite": back to configuration so the settings can be adjusted.
@@ -143,24 +168,32 @@ export default function Scoutline_AddPage({
     setStage(0);
     setPreviewStatus("idle");
     setPreviewLog([]);
+    setErrorMessage("");
   }
 
   function handleStart() {
     cancelAgents();
+    if (!scriptFileName) return;
     onComplete({
       ...config,
       url: normalizeUrl(config.url.trim()),
       name: resolveName(config),
       description: config.description.trim(),
       script,
+      scriptFileName,
     });
+    navigate("/monitored");
     // Reset so adding another page starts from a clean form.
     setConfig(INITIAL_CONFIG);
     setStage(0);
     setScript("");
+    setScriptFileName(null);
     setScriptStatus("idle");
     setPreviewLog([]);
     setPreviewStatus("idle");
+    setPreviewPosts([]);
+    setPreviewPostCount(0);
+    setErrorMessage("");
   }
 
   return (
@@ -176,6 +209,15 @@ export default function Scoutline_AddPage({
 
         <StageStepper stage={stage} />
 
+        {errorMessage && (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            {errorMessage}
+          </p>
+        )}
+
         <div className="grid items-start gap-5 lg:grid-cols-[5fr_6fr]">
           <ConfigureStep
             config={config}
@@ -189,7 +231,7 @@ export default function Scoutline_AddPage({
             <ScriptStep
               locked={stage < 1}
               script={script}
-              onScriptChange={setScript}
+              scriptFileName={scriptFileName}
               status={scriptStatus}
               onApprove={handleApproveScript}
             />
@@ -197,6 +239,8 @@ export default function Scoutline_AddPage({
               locked={stage < 2}
               pageName={resolveName(config)}
               includeImages={config.includeImages}
+              posts={previewPosts}
+              postCount={previewPostCount}
               log={previewLog}
               status={previewStatus}
               onApprove={handleStart}

@@ -6,8 +6,8 @@ export type Frequency = (typeof FREQUENCIES)[number];
 export const STAGES = ["Configure", "Script", "Preview", "Live"] as const;
 export type AddPageStage = 0 | 1 | 2;
 
-export type ScriptStatus = "idle" | "writing" | "ready";
-export type PreviewStatus = "idle" | "running" | "done";
+export type ScriptStatus = "idle" | "writing" | "ready" | "error";
+export type PreviewStatus = "idle" | "running" | "done" | "error";
 
 export type AddPageConfig = {
   url: string;
@@ -20,7 +20,10 @@ export type AddPageConfig = {
 };
 
 // What the page hands back once the user approves the preview.
-export type NewPageDraft = AddPageConfig & { script: string };
+export type NewPageDraft = AddPageConfig & {
+  script: string;
+  scriptFileName: string;
+};
 
 export const INITIAL_CONFIG: AddPageConfig = {
   url: "",
