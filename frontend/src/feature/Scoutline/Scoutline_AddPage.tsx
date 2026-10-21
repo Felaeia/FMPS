@@ -25,7 +25,7 @@ import {
 type Props = {
   // Called when the user approves the preview. The parent adds the page to
   // the monitored list and navigates to it.
-  onComplete: (draft: NewPageDraft) => void;
+  onComplete: (draft: NewPageDraft) => Promise<void>;
   // Tags already used on monitored pages, offered as suggestions.
   existingTags?: string[];
 };
@@ -171,18 +171,24 @@ export default function Scoutline_AddPage({
     setErrorMessage("");
   }
 
-  function handleStart() {
+  async function handleStart() {
     cancelAgents();
     if (!scriptFileName) return;
-    onComplete({
-      ...config,
-      url: normalizeUrl(config.url.trim()),
-      name: resolveName(config),
-      description: config.description.trim(),
-      script,
-      scriptFileName,
-    });
-    navigate("/monitored");
+    setErrorMessage("");
+    try {
+      await onComplete({
+        ...config,
+        url: normalizeUrl(config.url.trim()),
+        name: resolveName(config),
+        description: config.description.trim(),
+        script,
+        scriptFileName,
+      });
+      navigate("/monitored");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not start monitoring this page.");
+      return;
+    }
     // Reset so adding another page starts from a clean form.
     setConfig(INITIAL_CONFIG);
     setStage(0);

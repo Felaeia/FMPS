@@ -1,14 +1,25 @@
 import { chromium } from "playwright";
 import { existsSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
-
+import { writeFile, mkdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { basename, dirname, extname, join } from "node:path";
 // Run with:
 // node scripts/scrape-facebook.mjs           # headless
 // node scripts/scrape-facebook.mjs --headed  # watch the browser
 
 const PAGE_URL = "https://www.facebook.com/JonkieOuanoPH";
 const MAX_POSTS = 10;
-const OUTPUT_FILE = "posts.json";
+const OUTPUT_DIR =
+  process.env.SCRAPER_OUTPUT_DIR ?? join(dirname(fileURLToPath(import.meta.url)), "posts");
+// Derive the base name from this script's own filename:
+//   scrape-facebook.mjs  ->  scrape-facebook
+//   scrape-facebook.js   ->  scrape-facebook
+const SCRIPT_PATH = fileURLToPath(import.meta.url);
+const SCRIPT_NAME = basename(SCRIPT_PATH, extname(SCRIPT_PATH));
+
+// Base output path (before the -1, -2, ... suffix is applied)
+const OUTPUT_FILE =
+  process.env.SCRAPER_OUTPUT_FILE ?? join(OUTPUT_DIR, `${SCRIPT_NAME}.json`);
 // Optional logged-in session. Logged-out visitors usually hit a login wall
 // after a few posts; if this file exists, the browser reuses that session.
 const STORAGE_STATE = "fb-session.json";
@@ -190,8 +201,10 @@ try {
     posts,
   };
 
+  await mkdir(OUTPUT_DIR, { recursive: true });
   await writeFile(OUTPUT_FILE, JSON.stringify(snapshot, null, 2));
   console.log(`Saved ${posts.length} posts to ${OUTPUT_FILE}`);
+
   if (posts.length < MAX_POSTS) {
     console.warn(
       `Only ${posts.length} of ${MAX_POSTS} posts were reachable. See the notes about the login wall.`,

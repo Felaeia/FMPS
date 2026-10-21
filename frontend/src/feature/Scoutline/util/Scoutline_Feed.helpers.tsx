@@ -25,8 +25,9 @@ export interface FeedPost {
   source: string; // e.g. "City Hall Updates"; also drives the avatar
   body: string;
   createdAt: string; // ISO date string, turned into "just now" / "5m ago" below
-  categories: FeedCategory[];
+  categories: string[];
   images?: string[];
+  url?: string;
 }
 
 // ---------- Category -> tag color ----------
@@ -42,9 +43,9 @@ const CATEGORY_VARIANT: Record<FeedCategory, TagVariant> = {
 
 // Converts a category into the props the common <Tag /> expects, so a post's
 // tags are just `post.categories.map(getCategoryTagProps)`.
-export const getCategoryTagProps = (category: FeedCategory): TagProps => ({
+export const getCategoryTagProps = (category: string): TagProps => ({
   label: category,
-  variant: CATEGORY_VARIANT[category],
+  variant: CATEGORY_VARIANT[category as FeedCategory] ?? "teal",
 });
 
 // ---------- Filtering ----------

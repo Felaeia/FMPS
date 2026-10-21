@@ -10,6 +10,8 @@ builder.Services.AddMediatR(configuration =>
 builder.Services.AddSingleton<IItemRepository, InMemoryItemRepository>();
 builder.Services.AddHttpClient("Fara", client =>
     client.Timeout = TimeSpan.FromSeconds(90));
+builder.Services.AddSingleton<Template.Api.Infrastructure.Scoutline.ScoutlineStore>();
+builder.Services.AddHostedService<Template.Api.Infrastructure.Scoutline.ScrapeScheduler>();
 
 var frontendOrigins =
     builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];

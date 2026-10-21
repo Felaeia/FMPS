@@ -113,8 +113,9 @@ public sealed class ScoutlineScriptsController(
             return BadRequest("Only scripts generated from the approved Facebook template can be run.");
         }
 
-        var outputPath = Path.Combine(scriptDirectory, "posts.json");
-        if (System.IO.File.Exists(outputPath)) System.IO.File.Delete(outputPath);
+        var outputDirectory = Path.Combine(Path.GetTempPath(), "scoutline", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "posts.json");
 
         using var process = new Process
         {
@@ -130,6 +131,8 @@ public sealed class ScoutlineScriptsController(
             EnableRaisingEvents = true,
         };
         process.StartInfo.ArgumentList.Add(scriptPath);
+        process.StartInfo.Environment["SCRAPER_OUTPUT_DIR"] = outputDirectory;
+        process.StartInfo.Environment["SCRAPER_OUTPUT_FILE"] = outputPath;
 
         try
         {
@@ -172,6 +175,11 @@ public sealed class ScoutlineScriptsController(
             return StatusCode(
                 StatusCodes.Status503ServiceUnavailable,
                 "Node.js was not found. Install Node.js and the frontend dependencies first.");
+        }
+        finally
+        {
+            try { Directory.Delete(outputDirectory, recursive: true); }
+            catch (IOException) { }
         }
     }
 
