@@ -139,17 +139,47 @@ public sealed class ScoutlineStore
         }
     }
 
-    public bool RemovePage(string id)
+    public bool RemovePage(string id) => RemovePage(id, static () => { }, static () => { });
+
+    public bool RemovePage(string id, Action deleteScript, Action restoreScript)
     {
         lock (gate)
         {
-            var removed = state.Pages.RemoveAll(page => page.Id == id) > 0;
-            if (removed)
+            var index = state.Pages.FindIndex(page => page.Id == id);
+            if (index < 0) return false;
+
+            var page = state.Pages[index];
+            var removedPosts = state.Posts.Where(post => post.PageId == id).ToArray();
+            try
             {
+                deleteScript();
+                state.Pages.RemoveAt(index);
                 state.Posts.RemoveAll(post => post.PageId == id);
                 Save();
+                return true;
             }
-            return removed;
+            catch (Exception exception)
+            {
+                if (!state.Pages.Any(existing => existing.Id == id))
+                    state.Pages.Insert(Math.Min(index, state.Pages.Count), page);
+                foreach (var post in removedPosts)
+                {
+                    if (!state.Posts.Any(existing => existing.Id == post.Id))
+                        state.Posts.Add(post);
+                }
+
+                try
+                {
+                    restoreScript();
+                }
+                catch (Exception rollbackException)
+                {
+                    throw new IOException(
+                        "Page deletion failed and the generated script could not be restored.",
+                        new AggregateException(exception, rollbackException));
+                }
+                throw;
+            }
         }
     }
 

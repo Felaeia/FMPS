@@ -163,20 +163,32 @@ public sealed class ScoutlineMonitoringController(
         if (!scriptPath.StartsWith(scriptDirectoryPrefix, StringComparison.OrdinalIgnoreCase))
             return BadRequest("The generated scraper file is outside the repository directory.");
 
+        byte[]? scriptBackup = null;
         try
         {
-            if (System.IO.File.Exists(scriptPath)) System.IO.File.Delete(scriptPath);
+            var removed = store.RemovePage(
+                id,
+                () =>
+                {
+                    if (!System.IO.File.Exists(scriptPath)) return;
+                    scriptBackup = System.IO.File.ReadAllBytes(scriptPath);
+                    System.IO.File.Delete(scriptPath);
+                },
+                () =>
+                {
+                    if (scriptBackup is not null && !System.IO.File.Exists(scriptPath))
+                        System.IO.File.WriteAllBytes(scriptPath, scriptBackup);
+                });
+            return removed ? NoContent() : NotFound();
         }
-        catch (IOException)
+        catch (IOException exception)
         {
-            return Problem("Could not remove the page's generated scraper file.");
+            return Problem($"Could not complete page and script deletion: {exception.Message}");
         }
         catch (UnauthorizedAccessException)
         {
             return Problem("Permission was denied while removing the page's generated scraper file.");
         }
-
-        return store.RemovePage(id) ? NoContent() : NotFound();
     }
 
     [HttpGet("feed")]

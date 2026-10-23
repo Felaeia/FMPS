@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import DropdownCard from "../../common/dropDownCard";
 import { Tag } from "../../common/tags";
@@ -38,7 +38,7 @@ function PageSettings({
 }: {
   page: MonitoredPageRecord;
   onChange: (patch: MonitoredPagePatch) => void;
-  onRemove: () => void;
+  onRemove: (trigger: HTMLButtonElement) => void;
 }) {
   const [draft, setDraft] = useState("");
 
@@ -138,7 +138,7 @@ function PageSettings({
           </button>
           <button
             type="button"
-            onClick={onRemove}
+            onClick={(event) => onRemove(event.currentTarget)}
             className="h-11 rounded-xl border border-red-200 bg-white px-5 text-sm font-medium text-red-500 transition hover:bg-red-50"
           >
             Remove
@@ -153,7 +153,21 @@ export default function Scoutline_MonitoredPage() {
   const [pages, setPages] = useState<MonitoredPageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pageToRemove, setPageToRemove] = useState<MonitoredPageRecord | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState("");
+  const [removeNotice, setRemoveNotice] = useState("");
+  const cancelRemoveRef = useRef<HTMLButtonElement>(null);
+  const confirmRemoveRef = useRef<HTMLButtonElement>(null);
+  const removeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const navigate = useNavigate();
+
+  const closeRemoveDialog = useCallback(() => {
+    if (isRemoving) return;
+    setPageToRemove(null);
+    setRemoveError("");
+    window.requestAnimationFrame(() => removeTriggerRef.current?.focus());
+  }, [isRemoving]);
 
   const refreshPages = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -179,6 +193,33 @@ export default function Scoutline_MonitoredPage() {
     };
   }, [refreshPages]);
 
+  useEffect(() => {
+    if (!pageToRemove) return;
+    cancelRemoveRef.current?.focus();
+  }, [pageToRemove]);
+
+  useEffect(() => {
+    if (!pageToRemove) return;
+    function handleDialogKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (!isRemoving) closeRemoveDialog();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      if (event.shiftKey && document.activeElement === cancelRemoveRef.current) {
+        event.preventDefault();
+        confirmRemoveRef.current?.focus();
+      } else if (!event.shiftKey && document.activeElement === confirmRemoveRef.current) {
+        event.preventDefault();
+        cancelRemoveRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleDialogKeyDown);
+    return () => document.removeEventListener("keydown", handleDialogKeyDown);
+  }, [pageToRemove, isRemoving, closeRemoveDialog]);
+
   async function changePage(id: string, patch: MonitoredPagePatch) {
     const previousPages = pages;
     setPages((current) => current.map((page) => page.id === id ? { ...page, ...patch } : page));
@@ -192,13 +233,28 @@ export default function Scoutline_MonitoredPage() {
     }
   }
 
-  async function removePage(id: string) {
+  function openRemoveDialog(page: MonitoredPageRecord, trigger: HTMLButtonElement) {
+    removeTriggerRef.current = trigger;
+    setRemoveError("");
+    setRemoveNotice("");
+    setPageToRemove(page);
+  }
+
+  async function removePage() {
+    if (!pageToRemove || isRemoving) return;
+    const page = pageToRemove;
+    setIsRemoving(true);
+    setRemoveError("");
     try {
-      await deleteMonitoredPage(id);
-      setPages((current) => current.filter((page) => page.id !== id));
+      await deleteMonitoredPage(page.id);
+      setPages((current) => current.filter((item) => item.id !== page.id));
       setError("");
+      setRemoveNotice(`${page.name} and its generated script were deleted.`);
+      setPageToRemove(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not remove the monitored page.");
+      setRemoveError(cause instanceof Error ? cause.message : "Could not remove the monitored page.");
+    } finally {
+      setIsRemoving(false);
     }
   }
 
@@ -218,6 +274,7 @@ export default function Scoutline_MonitoredPage() {
         </header>
 
         {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+        {removeNotice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{removeNotice}</p>}
         {loading ? <p className="text-sm text-stone-500">Loading monitored pages…</p> : null}
         {!loading && pages.length === 0 && !error && <p className="rounded-2xl border border-orange-100 bg-white/70 p-6 text-sm text-stone-500">No pages are being monitored yet. Add a page to start collecting posts.</p>}
 
@@ -242,11 +299,59 @@ export default function Scoutline_MonitoredPage() {
                 </div>
               )}
             >
-              <PageSettings page={page} onChange={(patch) => void changePage(page.id, patch)} onRemove={() => void removePage(page.id)} />
+              <PageSettings
+                page={page}
+                onChange={(patch) => void changePage(page.id, patch)}
+                onRemove={(trigger) => openRemoveDialog(page, trigger)}
+              />
             </DropdownCard>
           ))}
         </div>
       </div>
+
+      {pageToRemove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 p-4">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="remove-page-title"
+            aria-describedby="remove-page-description"
+            className="w-full max-w-lg rounded-xl border border-stone-200 bg-white p-6 shadow-2xl"
+          >
+            <h2 id="remove-page-title" className="text-lg font-semibold text-stone-800">
+              Delete monitored page?
+            </h2>
+            <p id="remove-page-description" className="mt-3 text-sm leading-6 text-stone-600">
+              Delete <strong>{pageToRemove.name}</strong> ({pageToRemove.pageUrl})? The linked generated scraper script will also be deleted from the project.
+            </p>
+            {removeError && (
+              <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {removeError}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                ref={cancelRemoveRef}
+                type="button"
+                onClick={closeRemoveDialog}
+                disabled={isRemoving}
+                className="h-10 rounded-lg border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                ref={confirmRemoveRef}
+                type="button"
+                onClick={() => void removePage()}
+                disabled={isRemoving}
+                className="h-10 rounded-lg bg-red-700 px-4 text-sm font-semibold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isRemoving ? "Deleting…" : "Delete page and script"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
