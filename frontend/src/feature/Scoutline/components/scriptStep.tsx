@@ -18,7 +18,7 @@ const STATUS_DOT: Record<ScriptStatus, string> = {
 
 type ScriptStepProps = {
   script: string;
-  scriptFileName: string | null;
+  scriptDraftId: string | null;
   status: ScriptStatus;
   onBack: () => void;
   onContinue: () => void;
@@ -26,7 +26,7 @@ type ScriptStepProps = {
 
 export default function ScriptStep({
   script,
-  scriptFileName,
+  scriptDraftId,
   status,
   onBack,
   onContinue,
@@ -66,9 +66,9 @@ export default function ScriptStep({
         {STATUS_TEXT[status]}
       </p>
 
-      {scriptFileName && (
+      {scriptDraftId && (
         <p className="-mt-1 mb-3 break-all text-xs text-stone-500">
-          Saved to frontend/agent/scripts/repository/{scriptFileName}
+          Temporary script draft: {scriptDraftId}
         </p>
       )}
 

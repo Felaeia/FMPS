@@ -2,7 +2,7 @@ const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL ?? "https://localhost:7022";
 
 export type GeneratedScraperScript = {
-  fileName: string;
+  draftId: string;
   script: string;
 };
 
@@ -65,10 +65,21 @@ export function generateScraperScript(
   );
 }
 
-export function runScraperPreview(fileName: string, signal?: AbortSignal) {
+export function runScraperPreview(draftId: string, signal?: AbortSignal) {
   return post<ScraperPreview>(
     "/api/scoutline/scripts/preview",
-    { fileName },
+    { draftId },
     signal,
   );
+}
+
+export async function discardScriptDraft(draftId: string, keepalive = false) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/scoutline/scripts/drafts/${encodeURIComponent(draftId)}`,
+    { method: "DELETE", keepalive },
+  );
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `Draft cleanup failed (${response.status}).`);
+  }
 }

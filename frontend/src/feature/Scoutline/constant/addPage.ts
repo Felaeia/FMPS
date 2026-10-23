@@ -20,7 +20,7 @@ export type AddPageConfig = {
 // What the page hands back once the user approves the preview.
 export type NewPageDraft = AddPageConfig & {
   script: string;
-  scriptFileName: string;
+  scriptDraftId: string;
 };
 
 export const INITIAL_CONFIG: AddPageConfig = {

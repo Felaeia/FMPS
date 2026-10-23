@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.Http.Json;
+using Template.Api.Infrastructure.Scoutline;
 
 namespace Template.Api.Controllers;
 
@@ -13,12 +14,9 @@ namespace Template.Api.Controllers;
 public sealed class ScoutlineScriptsController(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
-    IWebHostEnvironment environment) : ControllerBase
+    IWebHostEnvironment environment,
+    ScoutlineScriptDraftStore drafts) : ControllerBase
 {
-    private static readonly Regex ScriptFileNamePattern = new(
-        @"^scrape-[a-z0-9-]+-[a-f0-9]{12}\.mjs$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     [HttpPost("generate")]
     public async Task<ActionResult<GeneratedScriptResponse>> Generate(
         [FromBody] GenerateScriptRequest request,
@@ -45,19 +43,8 @@ public sealed class ScoutlineScriptsController(
             var template = await System.IO.File.ReadAllTextAsync(
                 templatePath, cancellationToken);
             var script = BuildScript(template, approvedConfig.PageUrl, approvedConfig.MaxPosts);
-            var slug = Regex.Replace(
-                new Uri(approvedConfig.PageUrl).AbsolutePath.Trim('/').ToLowerInvariant(),
-                "[^a-z0-9]+", "-").Trim('-');
-            if (string.IsNullOrWhiteSpace(slug)) slug = "facebook-page";
-            slug = slug[..Math.Min(slug.Length, 40)];
-
-            Directory.CreateDirectory(scriptDirectory);
-            var fileName = $"scrape-{slug}-{Guid.NewGuid():N}";
-            fileName = fileName[..(fileName.Length - 20)] + ".mjs";
-            await System.IO.File.WriteAllTextAsync(
-                Path.Combine(scriptDirectory, fileName), script, cancellationToken);
-
-            return Ok(new GeneratedScriptResponse(fileName, script));
+            var draftId = drafts.Create(script);
+            return Ok(new GeneratedScriptResponse(draftId, script));
         }
         catch (HttpRequestException)
         {
@@ -76,16 +63,22 @@ public sealed class ScoutlineScriptsController(
         [FromBody] PreviewScriptRequest request,
         CancellationToken cancellationToken)
     {
-        if (!ScriptFileNamePattern.IsMatch(request.FileName))
+        if (!Guid.TryParseExact(request.DraftId, "N", out _))
         {
-            return BadRequest("Invalid generated script file name.");
+            return BadRequest("Invalid generated script draft ID.");
+        }
+
+        string script;
+        try
+        {
+            script = drafts.Read(request.DraftId);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound("Generated script draft not found.");
         }
 
         var scriptDirectory = GetRepositoryDirectory();
-        var scriptPath = Path.Combine(scriptDirectory, request.FileName);
-        if (!System.IO.File.Exists(scriptPath)) return NotFound("Generated script not found.");
-
-        var script = await System.IO.File.ReadAllTextAsync(scriptPath, cancellationToken);
         var pageUrlMatch = Regex.Match(script, "const PAGE_URL = (.+);", RegexOptions.CultureInvariant);
         var maxPostsMatch = Regex.Match(script, @"const MAX_POSTS = (\d+);", RegexOptions.CultureInvariant);
         if (!pageUrlMatch.Success || !maxPostsMatch.Success)
@@ -116,6 +109,9 @@ public sealed class ScoutlineScriptsController(
         var outputDirectory = Path.Combine(Path.GetTempPath(), "scoutline", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outputDirectory);
         var outputPath = Path.Combine(outputDirectory, "posts.json");
+        var previewDirectory = Path.Combine(Path.GetDirectoryName(scriptDirectory)!, ".preview-temp");
+        Directory.CreateDirectory(previewDirectory);
+        var previewScriptPath = Path.Combine(previewDirectory, $"{Guid.NewGuid():N}.mjs");
 
         using var process = new Process
         {
@@ -130,12 +126,13 @@ public sealed class ScoutlineScriptsController(
             },
             EnableRaisingEvents = true,
         };
-        process.StartInfo.ArgumentList.Add(scriptPath);
+        process.StartInfo.ArgumentList.Add(previewScriptPath);
         process.StartInfo.Environment["SCRAPER_OUTPUT_DIR"] = outputDirectory;
         process.StartInfo.Environment["SCRAPER_OUTPUT_FILE"] = outputPath;
 
         try
         {
+            await System.IO.File.WriteAllTextAsync(previewScriptPath, script, cancellationToken);
             process.Start();
             var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
             var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
@@ -178,9 +175,25 @@ public sealed class ScoutlineScriptsController(
         }
         finally
         {
+            try
+            {
+                System.IO.File.Delete(previewScriptPath);
+                if (!Directory.EnumerateFileSystemEntries(previewDirectory).Any())
+                    Directory.Delete(previewDirectory);
+            }
+            catch (IOException) { }
             try { Directory.Delete(outputDirectory, recursive: true); }
             catch (IOException) { }
         }
+    }
+
+    [HttpDelete("drafts/{draftId}")]
+    public IActionResult DiscardDraft(string draftId)
+    {
+        if (!Guid.TryParseExact(draftId, "N", out _))
+            return BadRequest("Invalid generated script draft ID.");
+        drafts.Delete(draftId);
+        return NoContent();
     }
 
     private async Task<FaraScriptConfig> GetFaraConfigAsync(
@@ -291,10 +304,10 @@ public sealed class GenerateScriptRequest
 public sealed class PreviewScriptRequest
 {
     [Required]
-    public string FileName { get; init; } = string.Empty;
+    public string DraftId { get; init; } = string.Empty;
 }
 
-public sealed record GeneratedScriptResponse(string FileName, string Script);
+public sealed record GeneratedScriptResponse(string DraftId, string Script);
 public sealed record ScriptPreviewResponse(JsonElement Snapshot, string StandardOutput, string StandardError);
 
 internal sealed class FaraScriptConfig

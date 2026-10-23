@@ -60,7 +60,7 @@ export function createMonitoredPage(draft: NewPageDraft) {
     body: JSON.stringify({
       pageUrl: draft.url,
       name: draft.name,
-      scriptFileName: draft.scriptFileName,
+      draftId: draft.scriptDraftId,
       frequency: draft.frequency,
       postsPerRun: draft.postsPerRun,
       includeImages: draft.includeImages,

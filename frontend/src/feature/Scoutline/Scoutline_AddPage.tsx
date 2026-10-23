@@ -20,6 +20,7 @@ import {
 import {
   generateScraperScript,
   runScraperPreview,
+  discardScriptDraft,
   type ScraperSnapshot,
   type ScrapedPost,
 } from "./api/addPageApi";
@@ -63,7 +64,7 @@ export default function Scoutline_AddPage({
   const [config, setConfig] = useState<AddPageConfig>(INITIAL_CONFIG);
   const [stage, setStage] = useState<AddPageStage>(0);
   const [script, setScript] = useState("");
-  const [scriptFileName, setScriptFileName] = useState<string | null>(null);
+  const [scriptDraftId, setScriptDraftId] = useState<string | null>(null);
   const [scriptStatus, setScriptStatus] = useState<ScriptStatus>("idle");
   const [previewLog, setPreviewLog] = useState<string[]>([]);
   const [previewStatus, setPreviewStatus] = useState<PreviewStatus>("idle");
@@ -80,6 +81,7 @@ export default function Scoutline_AddPage({
   // Abort network work if the user starts over or leaves the flow.
   const requestAbort = useRef<AbortController | null>(null);
   const approvalInProgress = useRef(false);
+  const scriptDraftIdRef = useRef<string | null>(null);
 
   function cancelAgents() {
     requestAbort.current?.abort();
@@ -88,8 +90,17 @@ export default function Scoutline_AddPage({
 
   // Stop pending timers on unmount so they don't set state afterwards.
   useEffect(() => {
+    const discardDraft = () => {
+      const draftId = scriptDraftIdRef.current;
+      if (!draftId || approvalInProgress.current) return;
+      scriptDraftIdRef.current = null;
+      void discardScriptDraft(draftId, true).catch(() => {});
+    };
+    window.addEventListener("pagehide", discardDraft);
     return () => {
       requestAbort.current?.abort();
+      window.removeEventListener("pagehide", discardDraft);
+      discardDraft();
     };
   }, []);
 
@@ -101,11 +112,16 @@ export default function Scoutline_AddPage({
   // since a new script invalidates the earlier sample.
   async function handleGenerate() {
     cancelAgents();
+    const previousDraftId = scriptDraftIdRef.current;
+    scriptDraftIdRef.current = null;
+    if (previousDraftId) {
+      await discardScriptDraft(previousDraftId).catch(() => {});
+    }
     const controller = new AbortController();
     requestAbort.current = controller;
     setStage(1);
     setScript("");
-    setScriptFileName(null);
+    setScriptDraftId(null);
     setScriptStatus("writing");
     setPreviewStatus("idle");
     setPreviewLog([]);
@@ -122,8 +138,13 @@ export default function Scoutline_AddPage({
         config.postsPerRun,
         controller.signal,
       );
+      if (controller.signal.aborted) {
+        await discardScriptDraft(generated.draftId, true).catch(() => {});
+        return;
+      }
       setScript(generated.script);
-      setScriptFileName(generated.fileName);
+      setScriptDraftId(generated.draftId);
+      scriptDraftIdRef.current = generated.draftId;
       setScriptStatus("ready");
     } catch (error) {
       if (!controller.signal.aborted) {
@@ -139,7 +160,7 @@ export default function Scoutline_AddPage({
 
   // Step 3: run the generated repository script and show its real output.
   async function handleRunPreview() {
-    if (!scriptFileName) return;
+    if (!scriptDraftId) return;
     cancelAgents();
     const controller = new AbortController();
     requestAbort.current = controller;
@@ -150,7 +171,7 @@ export default function Scoutline_AddPage({
     setPreviewStatus("running");
 
     try {
-      const result = await runScraperPreview(scriptFileName, controller.signal);
+      const result = await runScraperPreview(scriptDraftId, controller.signal);
       const posts = result.snapshot.posts ?? [];
       setPreviewSnapshot(result.snapshot);
       setPreviewPosts(posts);
@@ -175,9 +196,18 @@ export default function Scoutline_AddPage({
     }
   }
 
+  async function handleCancel() {
+    cancelAgents();
+    const draftId = scriptDraftIdRef.current;
+    scriptDraftIdRef.current = null;
+    setScriptDraftId(null);
+    if (draftId) await discardScriptDraft(draftId).catch(() => {});
+    navigate("/monitored");
+  }
+
   async function handleStart() {
     if (
-      !scriptFileName ||
+      !scriptDraftId ||
       !previewSnapshot ||
       previewStatus !== "done" ||
       isApproving ||
@@ -199,12 +229,14 @@ export default function Scoutline_AddPage({
           name: resolveName(config),
           description: config.description.trim(),
           script,
-          scriptFileName,
+          scriptDraftId,
         });
         pageId = page.id;
         setApprovedPageId(page.id);
       }
       await onPublishPreview(pageId, previewSnapshot);
+      scriptDraftIdRef.current = null;
+      setScriptDraftId(null);
       setShowApprovalConfirmation(false);
       navigate("/feed", {
         state: { approvalNotice: "Page approved and preview data posted to the feed." },
@@ -225,7 +257,8 @@ export default function Scoutline_AddPage({
     setConfig(INITIAL_CONFIG);
     setStage(0);
     setScript("");
-    setScriptFileName(null);
+    setScriptDraftId(null);
+    scriptDraftIdRef.current = null;
     setScriptStatus("idle");
     setPreviewLog([]);
     setPreviewStatus("idle");
@@ -241,10 +274,22 @@ export default function Scoutline_AddPage({
     <div className="min-h-full bg-gradient-to-br from-orange-50 via-[#fffaf5] to-[#fffaf5] p-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-5">
         <header>
-          <h1 className="text-3xl font-extrabold text-stone-800">Add a page</h1>
-          <p className="mt-1 max-w-[58ch] text-sm text-stone-400">
-            Configure the page, review its script, inspect a preview, then approve it.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-3xl font-extrabold text-stone-800">Add a page</h1>
+              <p className="mt-1 max-w-[58ch] text-sm text-stone-400">
+                Configure the page, review its script, inspect a preview, then approve it.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleCancel()}
+              disabled={isApproving}
+              className="h-10 rounded-xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel setup
+            </button>
+          </div>
         </header>
 
         <StageStepper stage={stage} />
@@ -271,7 +316,7 @@ export default function Scoutline_AddPage({
         {stage === 1 && (
             <ScriptStep
               script={script}
-              scriptFileName={scriptFileName}
+              scriptDraftId={scriptDraftId}
               status={scriptStatus}
               onBack={() => setStage(0)}
               onContinue={() => setStage(2)}

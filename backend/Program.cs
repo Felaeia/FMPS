@@ -11,6 +11,7 @@ builder.Services.AddSingleton<IItemRepository, InMemoryItemRepository>();
 builder.Services.AddHttpClient("Fara", client =>
     client.Timeout = TimeSpan.FromSeconds(90));
 builder.Services.AddSingleton<Template.Api.Infrastructure.Scoutline.ScoutlineStore>();
+builder.Services.AddSingleton<Template.Api.Infrastructure.Scoutline.ScoutlineScriptDraftStore>();
 builder.Services.AddHostedService<Template.Api.Infrastructure.Scoutline.ScrapeScheduler>();
 
 var frontendOrigins =

@@ -12,6 +12,7 @@ public sealed record MonitoredPage
     public string Name { get; init; } = string.Empty;
     public string PageUrl { get; init; } = string.Empty;
     public string ScriptFileName { get; init; } = string.Empty;
+    public string ApprovalDraftId { get; init; } = string.Empty;
     public string Frequency { get; init; } = "15 min";
     public int PostsPerRun { get; init; } = 3;
     public bool IncludeImages { get; init; } = true;
@@ -80,6 +81,49 @@ public sealed class ScoutlineStore
             state.Pages.Add(page);
             Save();
             return page;
+        }
+    }
+
+    public MonitoredPage AddPageWithScriptPromotion(
+        MonitoredPage page,
+        Action promoteScript,
+        Action rollbackPromotion)
+    {
+        lock (gate)
+        {
+            promoteScript();
+            state.Pages.Add(page);
+            try
+            {
+                Save();
+                return page;
+            }
+            catch
+            {
+                state.Pages.RemoveAll(existing => existing.Id == page.Id);
+                rollbackPromotion();
+                throw;
+            }
+        }
+    }
+
+    public int CleanupOrphanScripts(string repositoryDirectory)
+    {
+        lock (gate)
+        {
+            if (!Directory.Exists(repositoryDirectory)) return 0;
+            var referencedScripts = state.Pages
+                .Select(page => page.ScriptFileName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var removed = 0;
+            foreach (var path in Directory.EnumerateFiles(repositoryDirectory, "*.mjs"))
+            {
+                var fileName = Path.GetFileName(path);
+                if (referencedScripts.Contains(fileName)) continue;
+                System.IO.File.Delete(path);
+                removed++;
+            }
+            return removed;
         }
     }
 
@@ -238,21 +282,31 @@ public sealed class ScoutlineStore
 
 public sealed class ScrapeScheduler(
     ScoutlineStore store,
+    ScoutlineScriptDraftStore drafts,
     IConfiguration configuration,
     IWebHostEnvironment environment,
     ILogger<ScrapeScheduler> logger) : BackgroundService
 {
     private static readonly Regex ScriptFileNamePattern = new(
-        @"^scrape-[a-z0-9-]+-[a-f0-9]{12}\.mjs$",
+        @"^scrape-[a-z0-9-]+-(?:[a-f0-9]{12}|[a-f0-9]{32})\.mjs$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var repositoryDirectory = ScoutlinePaths.FindRepositoryDirectory(environment.ContentRootPath);
+        RunCleanup(repositoryDirectory);
+        var nextCleanup = DateTimeOffset.UtcNow.AddMinutes(30);
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                if (DateTimeOffset.UtcNow >= nextCleanup)
+                {
+                    RunCleanup(repositoryDirectory);
+                    nextCleanup = DateTimeOffset.UtcNow.AddMinutes(30);
+                }
+
                 MonitoredPage? page;
                 while ((page = store.TakeDuePage(DateTimeOffset.UtcNow)) is not null)
                 {
@@ -279,6 +333,24 @@ public sealed class ScrapeScheduler(
             {
                 break;
             }
+        }
+    }
+
+    private void RunCleanup(string repositoryDirectory)
+    {
+        try
+        {
+            var removedScripts = store.CleanupOrphanScripts(repositoryDirectory);
+            var removedDrafts = drafts.CleanupExpired(TimeSpan.FromHours(24));
+            if (removedScripts > 0 || removedDrafts > 0)
+                logger.LogInformation(
+                    "Removed {ScriptCount} orphaned scripts and {DraftCount} expired script drafts",
+                    removedScripts,
+                    removedDrafts);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Script cleanup sweep failed");
         }
     }
 

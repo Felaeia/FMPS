@@ -9,11 +9,12 @@ namespace Template.Api.Controllers;
 [Route("api/scoutline/monitoring")]
 public sealed class ScoutlineMonitoringController(
     ScoutlineStore store,
+    ScoutlineScriptDraftStore drafts,
     IWebHostEnvironment environment) : ControllerBase
 {
     private static readonly string[] Frequencies = ["5 min", "15 min", "Hourly", "Daily"];
     private static readonly Regex ScriptFileNamePattern = new(
-        @"^scrape-[a-z0-9-]+-[a-f0-9]{12}\.mjs$",
+        @"^scrape-[a-z0-9-]+-(?:[a-f0-9]{12}|[a-f0-9]{32})\.mjs$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     [HttpGet("pages")]
@@ -27,25 +28,48 @@ public sealed class ScoutlineMonitoringController(
         if (!IsFacebookUrl(request.PageUrl)) return BadRequest("Enter a valid HTTPS Facebook page URL.");
         if (!Frequencies.Contains(request.Frequency, StringComparer.Ordinal))
             return BadRequest("Choose a supported monitoring frequency.");
-        if (!ScriptFileNamePattern.IsMatch(request.ScriptFileName))
-            return BadRequest("The approved scraper script is invalid.");
-
+        if (!Guid.TryParseExact(request.DraftId, "N", out _))
+            return BadRequest("The generated scraper draft ID is invalid.");
+        var alreadyApproved = store.GetPages().FirstOrDefault(page => page.ApprovalDraftId == request.DraftId);
+        if (alreadyApproved is not null)
+        {
+            if (alreadyApproved.PageUrl != request.PageUrl ||
+                alreadyApproved.PostsPerRun != request.PostsPerRun ||
+                alreadyApproved.Frequency != request.Frequency)
+            {
+                return Conflict("This script draft was already approved with different settings.");
+            }
+            return Ok(alreadyApproved);
+        }
         var scriptDirectory = ScoutlinePaths.FindRepositoryDirectory(environment.ContentRootPath);
-        var scriptPath = Path.Combine(scriptDirectory, request.ScriptFileName);
-        if (!System.IO.File.Exists(scriptPath)) return BadRequest("Generate and approve the scraper script first.");
-        var script = await System.IO.File.ReadAllTextAsync(scriptPath, cancellationToken);
+        string script;
+        try
+        {
+            script = drafts.Read(request.DraftId);
+        }
+        catch (FileNotFoundException)
+        {
+            return BadRequest("Generate the scraper script again; its draft has expired or was discarded.");
+        }
         var templatePath = Path.Combine(Directory.GetParent(scriptDirectory)!.FullName, "scrape-facebook.mjs");
         var template = await System.IO.File.ReadAllTextAsync(templatePath, cancellationToken);
         if (!string.Equals(script, ScoutlinePaths.BuildScript(template, request.PageUrl, request.PostsPerRun), StringComparison.Ordinal))
             return BadRequest("The script does not match the approved page URL and settings.");
 
         var now = DateTimeOffset.UtcNow;
+        var pageId = Guid.NewGuid().ToString("N");
+        var slug = Regex.Replace(
+            new Uri(request.PageUrl).AbsolutePath.Trim('/').ToLowerInvariant(),
+            "[^a-z0-9]+", "-").Trim('-');
+        if (string.IsNullOrWhiteSpace(slug)) slug = "facebook-page";
+        slug = slug[..Math.Min(slug.Length, 40)];
         var page = new MonitoredPage
         {
-            Id = Guid.NewGuid().ToString("N"),
+            Id = pageId,
+            ApprovalDraftId = request.DraftId,
             Name = string.IsNullOrWhiteSpace(request.Name) ? new Uri(request.PageUrl).AbsolutePath.Trim('/').Split('/').LastOrDefault() ?? "Facebook page" : request.Name.Trim(),
             PageUrl = request.PageUrl,
-            ScriptFileName = request.ScriptFileName,
+            ScriptFileName = $"scrape-{slug}-{pageId}.mjs",
             Frequency = request.Frequency,
             PostsPerRun = request.PostsPerRun,
             IncludeImages = request.IncludeImages,
@@ -53,7 +77,17 @@ public sealed class ScoutlineMonitoringController(
             NextRunAt = now,
             InitialPreviewPending = true,
         };
-        store.AddPage(page);
+        try
+        {
+            store.AddPageWithScriptPromotion(
+                page,
+                () => drafts.Promote(request.DraftId, page.ScriptFileName),
+                () => drafts.RollbackPromotion(request.DraftId, page.ScriptFileName));
+        }
+        catch (FileNotFoundException)
+        {
+            return BadRequest("Generate the scraper script again; its draft has expired or was discarded.");
+        }
         return Ok(page);
     }
 
@@ -159,7 +193,7 @@ public sealed class AddMonitoredPageRequest
 {
     [Required, StringLength(2048)] public string PageUrl { get; init; } = string.Empty;
     [StringLength(120)] public string Name { get; init; } = string.Empty;
-    [Required] public string ScriptFileName { get; init; } = string.Empty;
+    [Required] public string DraftId { get; init; } = string.Empty;
     [Required] public string Frequency { get; init; } = string.Empty;
     [Range(1, 10)] public int PostsPerRun { get; init; }
     public bool IncludeImages { get; init; }
