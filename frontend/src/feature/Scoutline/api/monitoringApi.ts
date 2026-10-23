@@ -1,6 +1,6 @@
 import type { Frequency, NewPageDraft } from "../constant/addPage";
 import type { ScraperSnapshot } from "./addPageApi";
-import type { FeedPost } from "../util/Scoutline_Feed.helpers";
+import type { FeedMedia, FeedPost } from "../util/Scoutline_Feed.helpers";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://localhost:7022";
 
@@ -100,9 +100,19 @@ export async function getFeedPosts(signal?: AbortSignal): Promise<FeedPost[]> {
     body: post.description || post.title,
     createdAt: post.createdAt,
     categories: post.tags,
-    images: post.media
-      .map((media) => media.type === "image" ? media.url : media.poster)
-      .filter((url): url is string => Boolean(url)),
+    media: post.media.flatMap((media): FeedMedia[] => {
+      if (media.type === "image" && media.url) {
+        return [{ type: "image", url: media.url }];
+      }
+      if (media.type === "video") {
+        return [{
+          type: "video",
+          url: media.url,
+          poster: media.poster ?? null,
+        }];
+      }
+      return [];
+    }),
     url: post.url ?? undefined,
   }));
 }

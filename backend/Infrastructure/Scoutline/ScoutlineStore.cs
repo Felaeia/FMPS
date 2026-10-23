@@ -287,7 +287,39 @@ public sealed class ScoutlineStore
             var uniqueValue = post.Url ?? post.Description.Trim();
             if (string.IsNullOrWhiteSpace(uniqueValue)) continue;
             var id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{page.Id}:{uniqueValue}")));
-            if (state.Posts.Any(existing => existing.Id == id)) continue;
+            var media = page.IncludeImages
+                ? post.Media
+                : post.Media.Where(item => !string.Equals(
+                    item.Type, "image", StringComparison.OrdinalIgnoreCase)).ToList();
+            var existingIndex = state.Posts.FindIndex(existing => existing.Id == id);
+            if (existingIndex >= 0)
+            {
+                var existing = state.Posts[existingIndex];
+                var videoIndex = 0;
+                var refreshedVideos = media
+                    .Where(item => string.Equals(item.Type, "video", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                var mergedMedia = existing.Media.Select(item =>
+                {
+                    if (!string.Equals(item.Type, "video", StringComparison.OrdinalIgnoreCase))
+                        return item;
+
+                    var refreshed = videoIndex < refreshedVideos.Length
+                        ? refreshedVideos[videoIndex]
+                        : null;
+                    videoIndex++;
+                    return refreshed is null
+                        ? item
+                        : item with
+                        {
+                            Url = item.Url ?? refreshed.Url,
+                            Poster = item.Poster ?? refreshed.Poster,
+                        };
+                }).ToList();
+                if (!mergedMedia.SequenceEqual(existing.Media))
+                    state.Posts[existingIndex] = existing with { Media = mergedMedia };
+                continue;
+            }
             state.Posts.Add(new MonitoredPost
             {
                 Id = id,
@@ -296,7 +328,7 @@ public sealed class ScoutlineStore
                 Url = post.Url,
                 Title = post.Title,
                 Description = post.Description,
-                Media = page.IncludeImages ? post.Media : [],
+                Media = media,
                 CreatedAt = scrapedAt,
                 Tags = [.. page.Tags],
             });
@@ -399,7 +431,12 @@ public sealed class ScrapeScheduler(
         var template = await System.IO.File.ReadAllTextAsync(templatePath, stoppingToken);
         var expected = ScoutlinePaths.BuildScript(template, page.PageUrl, page.PostsPerRun);
         if (!string.Equals(script, expected, StringComparison.Ordinal))
-            throw new InvalidOperationException("The saved script no longer matches its approved page settings.");
+        {
+            logger.LogInformation(
+                "Refreshing scraper script {ScriptFileName} to the current approved template.",
+                page.ScriptFileName);
+            await System.IO.File.WriteAllTextAsync(scriptPath, expected, stoppingToken);
+        }
 
         var outputDirectory = Path.Combine(Path.GetTempPath(), "scoutline", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outputDirectory);

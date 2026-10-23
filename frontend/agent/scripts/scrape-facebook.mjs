@@ -71,14 +71,36 @@ function extractPosts() {
 
     const media = [];
     const seen = new Set();
+    const getImageUrl = (img) => img.currentSrc || img.src || null;
+    const isLargeImage = (img) =>
+      Math.max(img.naturalWidth, img.width) >= 200 &&
+      Math.max(img.naturalHeight, img.height) >= 200;
+    const getVideoPoster = (video) => {
+      const poster = video.poster || video.getAttribute("poster");
+      if (poster) return poster;
+
+      // Facebook often renders the video thumbnail as a sibling image or a
+      // CSS background instead of setting the video's poster attribute.
+      let container = video.parentElement;
+      while (container && container !== article) {
+        const image = Array.from(container.querySelectorAll("img")).find(
+          (candidate) => getImageUrl(candidate) && isLargeImage(candidate),
+        );
+        if (image) return getImageUrl(image);
+
+        const background = getComputedStyle(container).backgroundImage;
+        const backgroundUrl = background.match(/url\(["']?(.*?)["']?\)/)?.[1];
+        if (backgroundUrl) return new URL(backgroundUrl, location.href).href;
+
+        container = container.parentElement;
+      }
+      return null;
+    };
 
     for (const img of article.querySelectorAll("img")) {
-      const src = img.currentSrc || img.src;
+      const src = getImageUrl(img);
       // Avatars, emoji and reaction icons are small; real post photos are not.
-      const isPhoto =
-        Math.max(img.naturalWidth, img.width) >= 200 &&
-        Math.max(img.naturalHeight, img.height) >= 200;
-      if (isPhoto && src && !seen.has(src)) {
+      if (isLargeImage(img) && src && !seen.has(src)) {
         seen.add(src);
         media.push({ type: "image", url: src });
       }
@@ -90,7 +112,7 @@ function extractPosts() {
       media.push({
         type: "video",
         url: videoLink ? cleanUrl(videoLink.href) : null,
-        poster: video.poster || null,
+        poster: getVideoPoster(video),
       });
     }
 

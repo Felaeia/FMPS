@@ -54,17 +54,23 @@ export default function PreviewStep({
               <p className="mt-1 whitespace-pre-wrap text-sm text-stone-500">
                 {posts[0].description || "No post text was found."}
               </p>
-              {includeImages && posts[0].media.length > 0 && (
+              {posts[0].media.some((item) => item.type === "video" || includeImages) && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {posts[0].media.map((item, index) => {
+                  {posts[0].media.filter((item) => item.type === "video" || includeImages).map((item, index) => {
                     const src = item.type === "video" ? item.poster : item.url;
                     return src ? (
-                      <img
-                        key={`${src}-${index}`}
-                        src={src}
-                        alt="Post media"
-                        className="h-[105px] w-[150px] rounded-xl object-cover"
-                      />
+                      <div key={`${src}-${index}`} className="relative">
+                        <img
+                          src={src}
+                          alt={item.type === "video" ? "Video or reel preview" : "Post image"}
+                          className="h-[105px] w-[150px] rounded-xl object-cover"
+                        />
+                        {item.type === "video" && (
+                          <span className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            VIDEO / REEL
+                          </span>
+                        )}
+                      </div>
                     ) : null;
                   })}
                 </div>

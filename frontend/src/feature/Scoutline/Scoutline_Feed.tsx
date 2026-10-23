@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { Play } from "lucide-react";
 import { Card } from "../../common/card";
 import { getFeedPosts } from "./api/monitoringApi";
 import { useTheme } from "../../context/ThemeContext.types";
@@ -13,25 +14,6 @@ import {
   type FeedFilter,
   type FeedPost,
 } from "./util/Scoutline_Feed.helpers";
-
-// Tile shown while a post has no real image yet. Fixed size so the row doesn't
-// jump when real images (rendered at the same size) replace it.
-const ImagePlaceholder = () => (
-  <div className="relative w-[104px] h-[72px] rounded-xl overflow-hidden bg-gradient-to-br from-[#E0B040] to-[#9CC83A]">
-    <svg
-      viewBox="0 0 104 72"
-      className="absolute inset-0 w-full h-full"
-      aria-hidden="true"
-    >
-      <circle cx="82" cy="16" r="8" fill="#FFFFFF" fillOpacity="0.45" />
-      <path
-        d="M0 72 L30 34 L50 56 L68 30 L104 72 Z"
-        fill="#FFFFFF"
-        fillOpacity="0.35"
-      />
-    </svg>
-  </div>
-);
 
 export default function Scoutline_Feed() {
   const location = useLocation();
@@ -154,22 +136,65 @@ export default function Scoutline_Feed() {
                 </a>
               )}
 
-              {/* Images sit between the body and the tags, so they go in the
-                  Card's children rather than a separate Card prop. */}
-              {post.images && post.images.length > 0 && (
+              {post.media.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {post.images.map((src, index) =>
-                    src ? (
+                  {post.media.map((media, index) => {
+                    if (media.type === "video") {
+                      const videoUrl = media.url ?? post.url;
+                      const preview = (
+                        <>
+                          {media.poster ? (
+                            <img
+                              src={media.poster}
+                              alt=""
+                              className="h-[140px] w-[104px] rounded-xl object-cover"
+                            />
+                          ) : (
+                            <div className="h-[140px] w-[104px] rounded-xl bg-stone-800" />
+                          )}
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/65 text-white">
+                              <Play aria-hidden="true" className="h-4 w-4" fill="currentColor" />
+                            </span>
+                          </span>
+                          <span className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            VIDEO / REEL
+                          </span>
+                        </>
+                      );
+
+                      return videoUrl ? (
+                        <a
+                          key={`${post.id}-video-${index}`}
+                          href={videoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Watch video or reel from ${post.source}`}
+                          title="Watch video or reel"
+                          className="relative block overflow-hidden rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700"
+                        >
+                          {preview}
+                        </a>
+                      ) : (
+                        <div
+                          key={`${post.id}-video-${index}`}
+                          className="relative overflow-hidden rounded-xl"
+                          aria-label="Video or reel preview"
+                        >
+                          {preview}
+                        </div>
+                      );
+                    }
+
+                    return media.url ? (
                       <img
-                        key={`${post.id}-${index}`}
-                        src={src}
+                        key={`${post.id}-image-${index}`}
+                        src={media.url}
                         alt=""
                         className="w-[104px] h-[72px] rounded-xl object-cover"
                       />
-                    ) : (
-                      <ImagePlaceholder key={`${post.id}-${index}`} />
-                    )
-                  )}
+                    ) : null;
+                  })}
                 </div>
               )}
             </Card>
