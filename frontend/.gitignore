@@ -25,7 +25,3 @@ dist-ssr
 *.sln
 *.sw?
 
-posts/*
-!posts/.gitkeep
-frontend/agent/scripts/repository/*
-!frontend/agent/scripts/repository/.gitkeep
