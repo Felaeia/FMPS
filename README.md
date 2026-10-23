@@ -1,67 +1,45 @@
-# React + .NET CQRS Template
-
-A reusable starter for full-stack projects using React, TypeScript, and
-ASP.NET Core with CQRS and MediatR. The repository contains a runnable Items
-example and a separate ToDo frontend feature scaffold that you can adapt to
-your project.
-
 ## Technology
 
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS
-- **Backend:** ASP.NET Core 8 Web API, MediatR
-- **CQRS example:** item queries and a create-item command
+- **Backend:** ASP.NET Core 8 Web API
+- **Database:** Supabase
+- **Agent for Automation:** Fara-7B
+- **Automated Scraping Agent:** Playwright
 
 ## Repository layout
 
 ```text
+backend/
+  Controllers/
+    ScoutlineMonitoringController.cs
+    ScoutlineScriptsController.cs
+  Infrastructure/Scoutline/
+    ScoutlineStore.cs
+    ScoutlineScriptDraftStore.cs
+
 frontend/
   src/
-    api.ts
+    ui/                             # Low-level design-system primitives
+    common/                         # Shared, domain-neutral UI
+    global/                         # Application shell and global UI
+    feature/
+      Scoutline/
+        components/
+        api/                        # Feature API clients
+        constant/
+        types/                      # Typescript types and shared interfaces
+        util/                       # Pure utility functions
+    App.css
     App.tsx
-    components/
-      ui/                             # Low-level design-system primitives
-      common/                         # Shared, domain-neutral UI
-      global/                         # Application shell and global UI
-      feature/
-        ToDo/
-          api/                        # Feature API boundary placeholder
-          componentPlaceholder.tsx    # Example feature component
-          constant/                   # Feature constants placeholder
-          data/                       # Fixtures and static data placeholder
-          hooks/useTodos.ts           # Feature state and actions
-          lib/                        # Feature helpers placeholder
-          provider/                   # Feature context placeholder
-          services/todoService.ts     # ToDo API service starter
-          types/todo.ts
-          util/utilPlaceholder.ts
-backend/
-  Controllers/ItemsController.cs
-  Application/Items/
-    Commands/CreateItemCommand.cs
-    Queries/GetItemsQuery.cs
-    Queries/GetItemByIdQuery.cs
-    IItemRepository.cs
-  Domain/Items/Item.cs
-  Infrastructure/Items/InMemoryItemRepository.cs
+    index.css
+    main.tsx
 ```
-
-Feature-specific code belongs under `components/feature/<FeatureName>`.
-`ui` is for low-level design primitives such as buttons, inputs, and dialogs.
-`common` is for higher-level reusable components composed from those
-primitives; `global` is for app-wide shell components such as navigation and
-global status UI.
-
-The ToDo frontend files are a scaffold and are **not wired into the current
-screen**. They expect a future `GET /api/todos` and `POST /api/todos` API. The
-working end-to-end example is Items:
-
-- `GET /api/items` — query all items
-- `GET /api/items/{id}` — query one item
-- `POST /api/items` — create an item
 
 ## Run locally
 
-Prerequisites: Node.js with npm and the .NET 8 SDK.
+Prerequisites: 
+- Node.js with npm and the .NET 8 SDK.
+- Install WSL2 (For Windows)
 
 ### 1. Start the API
 
@@ -69,7 +47,7 @@ In the repository root:
 
 ```powershell
 dotnet dev-certs https --trust
-dotnet run --project backend\Template.Api.csproj --launch-profile https
+dotnet run --project backend\FPMS.csproj --launch-profile https
 ```
 
 The API uses `https://localhost:7022` for HTTPS and Swagger is at
@@ -96,17 +74,81 @@ origins with standard ASP.NET Core configuration, for example:
 $env:Cors__AllowedOrigins__0 = "https://your-frontend.example"
 ```
 
-## CQRS flow
+### 3. Get the Fara Agent and Run - llama.cpp 8GB version
+  ## 1. Clone repository
+    git clone https://github.com/microsoft/fara.git
+    cd fara
+  
+  ## 2. Setup environment in WSL
+    python3 -m venv.venv
+    source.venv/bin/activate
+    pip install -e.
+  
+  ## 3. Install llama.cpp - Build Deps
+    # common deps
+        sudo dnf install -y git cmake gcc-c++ python3-devel[Fedora]
+        ~ For Devices with a GPU
 
-The Items example keeps HTTP concerns in the controller, sends query and
-command requests through MediatR, and puts persistence behind
-`IItemRepository`. The current `InMemoryItemRepository` makes the starter
-runnable without a database; its data is lost when the API restarts.
+    # add NVIDIA repo - auto-detects your Fedora version
+        sudo dnf install -y dnf-plugins-core
+        sudo dnf config-manager addrepo --from-repofile=https://developer.download.nvidia.com/compute/cuda/repos/fedora$(rpm -E %fedora)/x86_64/cuda-fedora$(rpm -E %fedora).repo
+        sudo dnf clean expire-cache
+        # now it will be found
+        sudo dnf install -y cuda-toolkit
 
-Replace the in-memory repository with the persistence approach required by
-your project while keeping read and write requests separate. Add project
-requirements such as database migrations, authentication, authorization,
-logging, and automated tests before production use.
+    # clone and build with CUDA - do this in WSL home, NOT /mnt/c/ - it's 10x faster
+        cd ~
+        git clone https://github.com/ggerganov/llama.cpp
+        cd llama.cpp
+        cmake -B build -DGGML_CUDA=1
+        cmake --build build --config Release -j $(nproc)[WSL2]
+        ~ For CPU Only Devices
+
+    # clone and build CPU only
+        cd ~
+        git clone https://github.com/ggerganov/llama.cpp
+        cd llama.cpp
+        cmake -B build -DGGML_NATIVE=OFF
+        cmake --build build --config Release -j $(nproc)
+
+    # converter deps
+        python3 -m venv ~/llama-venv
+        source ~/llama-venv/bin/activate
+        pip install -r requirements.txt huggingface_hub
+  
+  ## 4. Get and Quantize Fara-7B to 8GB [Q4_K_M]
+    mkdir -p ~/models
+    # download
+      hf download microsoft/Fara-7B --local-dir ~/models/Fara-7B-hf
+    # convert - for Qwen2.5-VL this creates 2 files: model + mmproj for vision
+      python convert_hf_to_gguf.py ~/models/Fara-7B-hf --outfile ~/models/fara-7b-f16.gguf
+    # quantize to Q4_K_M - this is what gets you to 8GB
+      ./build/bin/llama-quantize ~/models/fara-7b-f16.gguf ~/models/fara-7b-q4_k_m.gguf Q4_K_M
+
+  ## 5. Install Playwright in WSL
+    playwright install
+      .venv/bin/playwright install
+
+    note: WSL uses Fedora
+      sudo dnf install nss freetype harfbuzz liberation-fonts libX11 libXcomposite libXdamage libXext libXfixes libXrandr libXrender libXtst cups-libs dbus-libs alsa-lib pango cairo
+      sudo dnf install -y alsa-lib atk at-spi2-atk cups-libs libdrm libXcomposite libXdamage libXfixes libXrandr mesa-libgbm pango libxkbcommon
+  
+  ## 6. Run Fara Agent Locally
+    ~/llama.cpp/build/bin/llama-server -m ~/models/fara-7b-q4_k_m.gguf --mmproj ~/models/fara-7b-mmproj-f16.gguf --host 0.0.0.0 --port 5000 --ctx-size 2048
+  
+  ## 7. Test Fara Agent
+    python -m fara.run_fara --task "what is one plus one"
+
+  ### Add a monitored Facebook page
+
+  Keep the Fara-compatible llama.cpp server running at `http://localhost:5000` while
+  using Add a page. The backend asks Fara for the requested settings, then uses
+  `frontend/agent/scripts/scrape-facebook.mjs` as the immutable scraper template;
+  it only substitutes the approved page URL and post limit. Generated scripts are
+  saved under `frontend/agent/scripts/repository/`. The preview endpoint executes
+  that saved script with Node.js and returns its real `posts.json` output. Set
+  `Fara__BaseUrl` if the backend cannot reach the model at the default address.
+
 
 ## Common commands
 
@@ -120,18 +162,5 @@ npm run build
 Run the backend build from the repository root:
 
 ```powershell
-dotnet build backend\Template.Api.csproj
+dotnet build backend\FPMS.csproj
 ```
-
-## Create a project from this template
-
-1. Use GitHub's **Use this template** action or clone the repository into your
-   own project repository.
-2. Rename the repository, API assembly, namespaces, and sample features to
-   match your domain.
-3. Configure API URLs, CORS origins, and environment-specific settings.
-4. Implement the domain, database, and project-specific security and tests.
-
-Keep local `.env` files, credentials, and production connection strings out of
-source control. Use ASP.NET Core user secrets during development and a secure
-deployment secret store for deployed environments.

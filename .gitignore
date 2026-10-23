@@ -28,3 +28,8 @@
 *.suo
 .DS_Store
 Thumbs.db
+
+frontend/agent/scripts/repository/*
+!frontend/agent/scripts/repository/.gitkeep
+
+backend/App_Data/*

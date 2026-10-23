@@ -1,13 +1,10 @@
-using Template.Api.Application.Items;
-using Template.Api.Application.Items.Queries;
-using Template.Api.Infrastructure;
-using Template.Api.Infrastructure.Items;
-
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddMediatR(configuration =>
-    configuration.RegisterServicesFromAssemblyContaining<GetItemsQuery>());
-builder.Services.AddSingleton<IItemRepository, InMemoryItemRepository>();
+builder.Services.AddHttpClient("Fara", client =>
+    client.Timeout = TimeSpan.FromSeconds(90));
+builder.Services.AddSingleton<FPMS.Infrastructure.Scoutline.ScoutlineStore>();
+builder.Services.AddSingleton<FPMS.Infrastructure.Scoutline.ScoutlineScriptDraftStore>();
+builder.Services.AddHostedService<FPMS.Infrastructure.Scoutline.ScrapeScheduler>();
 
 var frontendOrigins =
     builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
