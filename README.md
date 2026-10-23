@@ -1,7 +1,7 @@
 ## Technology
 
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS
-- **Backend:** ASP.NET Core 8 Web API, MediatR
+- **Backend:** ASP.NET Core 8 Web API
 - **Database:** Supabase
 - **Agent for Automation:** Fara-7B
 - **Automated Scraping Agent:** Playwright
@@ -10,14 +10,12 @@
 
 ```text
 backend/
-  Controllers/ItemsController.cs
-  Application/Items/
-    Commands/CreateItemCommand.cs
-    Queries/GetItemsQuery.cs
-    Queries/GetItemByIdQuery.cs
-    IItemRepository.cs
-  Domain/Items/Item.cs
-  Infrastructure/Items/InMemoryItemRepository.cs
+  Controllers/
+    ScoutlineMonitoringController.cs
+    ScoutlineScriptsController.cs
+  Infrastructure/Scoutline/
+    ScoutlineStore.cs
+    ScoutlineScriptDraftStore.cs
 
 frontend/
   src/
@@ -27,12 +25,10 @@ frontend/
     feature/
       Scoutline/
         components/
-        api/                        # Feature API boundary placeholder
-        componentPlaceholder.tsx    # Example feature component
-        constant/                   # Feature constants placeholder
+        api/                        # Feature API clients
+        constant/
         types/                      # Typescript types and shared interfaces
         util/                       # Pure utility functions
-    api.ts
     App.css
     App.tsx
     index.css
@@ -51,7 +47,7 @@ In the repository root:
 
 ```powershell
 dotnet dev-certs https --trust
-dotnet run --project backend\Template.Api.csproj --launch-profile https
+dotnet run --project backend\FPMS.csproj --launch-profile https
 ```
 
 The API uses `https://localhost:7022` for HTTPS and Swagger is at
@@ -166,5 +162,5 @@ npm run build
 Run the backend build from the repository root:
 
 ```powershell
-dotnet build backend\Template.Api.csproj
+dotnet build backend\FPMS.csproj
 ```

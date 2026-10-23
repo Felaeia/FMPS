@@ -1,9 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
-using Template.Api.Infrastructure.Scoutline;
+using FPMS.Infrastructure.Scoutline;
 
-namespace Template.Api.Controllers;
+namespace FPMS.Controllers;
 
 [ApiController]
 [Route("api/scoutline/monitoring")]

@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Template.Api.Infrastructure.Scoutline;
+namespace FPMS.Infrastructure.Scoutline;
 
 public sealed record MonitoredPage
 {

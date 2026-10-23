@@ -1,4 +1,4 @@
-namespace Template.Api.Infrastructure.Scoutline;
+namespace FPMS.Infrastructure.Scoutline;
 
 public sealed class ScoutlineScriptDraftStore
 {

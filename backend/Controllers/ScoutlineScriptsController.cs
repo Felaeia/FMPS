@@ -5,9 +5,9 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.Http.Json;
-using Template.Api.Infrastructure.Scoutline;
+using FPMS.Infrastructure.Scoutline;
 
-namespace Template.Api.Controllers;
+namespace FPMS.Controllers;
 
 [ApiController]
 [Route("api/scoutline/scripts")]
