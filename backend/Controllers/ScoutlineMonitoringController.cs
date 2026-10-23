@@ -115,7 +115,35 @@ public sealed class ScoutlineMonitoringController(
     }
 
     [HttpDelete("pages/{id}")]
-    public IActionResult RemovePage(string id) => store.RemovePage(id) ? NoContent() : NotFound();
+    public IActionResult RemovePage(string id)
+    {
+        var page = store.GetPages().FirstOrDefault(existing => existing.Id == id);
+        if (page is null) return NotFound();
+        if (!ScriptFileNamePattern.IsMatch(page.ScriptFileName))
+            return BadRequest("The page has an invalid generated scraper file name.");
+
+        var scriptDirectory = Path.GetFullPath(
+            ScoutlinePaths.FindRepositoryDirectory(environment.ContentRootPath));
+        var scriptPath = Path.GetFullPath(Path.Combine(scriptDirectory, page.ScriptFileName));
+        var scriptDirectoryPrefix = scriptDirectory.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!scriptPath.StartsWith(scriptDirectoryPrefix, StringComparison.OrdinalIgnoreCase))
+            return BadRequest("The generated scraper file is outside the repository directory.");
+
+        try
+        {
+            if (System.IO.File.Exists(scriptPath)) System.IO.File.Delete(scriptPath);
+        }
+        catch (IOException)
+        {
+            return Problem("Could not remove the page's generated scraper file.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Problem("Permission was denied while removing the page's generated scraper file.");
+        }
+
+        return store.RemovePage(id) ? NoContent() : NotFound();
+    }
 
     [HttpGet("feed")]
     public ActionResult<IReadOnlyList<MonitoredPost>> GetFeed() => Ok(store.GetPosts());
