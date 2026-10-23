@@ -5,7 +5,10 @@ import Scoutline_Feed from "./feature/Scoutline/Scoutline_Feed";
 import { ThemeProvider } from "./context/ThemeContext";
 import Scoutline_MonitoredPage from "./feature/Scoutline/Scoutline_MonitoredPage";
 import Scoutline_AddPage from "./feature/Scoutline/Scoutline_AddPage";
-import { createMonitoredPage } from "./feature/Scoutline/api/monitoringApi";
+import {
+  createMonitoredPage,
+  publishInitialPreview,
+} from "./feature/Scoutline/api/monitoringApi";
 
 export default function App() {
   return (
@@ -22,7 +25,8 @@ export default function App() {
               path="addPage"
               element={
                 <Scoutline_AddPage
-                  onComplete={(draft) => createMonitoredPage(draft).then(() => undefined)}
+                  onComplete={createMonitoredPage}
+                  onPublishPreview={publishInitialPreview}
                 />
               }
             />

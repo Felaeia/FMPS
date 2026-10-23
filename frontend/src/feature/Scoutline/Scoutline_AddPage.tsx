@@ -20,13 +20,14 @@ import {
 import {
   generateScraperScript,
   runScraperPreview,
+  type ScraperSnapshot,
   type ScrapedPost,
 } from "./api/addPageApi";
+import type { MonitoredPageRecord } from "./api/monitoringApi";
 
 type Props = {
-  // Called when the user approves the preview. The parent adds the page to
-  // the monitored list and navigates to it.
-  onComplete: (draft: NewPageDraft) => Promise<void>;
+  onComplete: (draft: NewPageDraft) => Promise<MonitoredPageRecord>;
+  onPublishPreview: (pageId: string, snapshot: ScraperSnapshot) => Promise<MonitoredPageRecord>;
   // Tags already used on monitored pages, offered as suggestions.
   existingTags?: string[];
 };
@@ -56,6 +57,7 @@ function StageStepper({ stage }: { stage: AddPageStage }) {
 
 export default function Scoutline_AddPage({
   onComplete,
+  onPublishPreview,
   existingTags = [],
 }: Props) {
   const [config, setConfig] = useState<AddPageConfig>(INITIAL_CONFIG);
@@ -66,8 +68,11 @@ export default function Scoutline_AddPage({
   const [previewLog, setPreviewLog] = useState<string[]>([]);
   const [previewStatus, setPreviewStatus] = useState<PreviewStatus>("idle");
   const [previewPosts, setPreviewPosts] = useState<ScrapedPost[]>([]);
+  const [previewSnapshot, setPreviewSnapshot] = useState<ScraperSnapshot | null>(null);
   const [previewPostCount, setPreviewPostCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
+  const [feedPostError, setFeedPostError] = useState("");
+  const [approvedPageId, setApprovedPageId] = useState<string | null>(null);
   const [showApprovalConfirmation, setShowApprovalConfirmation] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const navigate = useNavigate();
@@ -105,8 +110,11 @@ export default function Scoutline_AddPage({
     setPreviewStatus("idle");
     setPreviewLog([]);
     setPreviewPosts([]);
+    setPreviewSnapshot(null);
     setPreviewPostCount(0);
     setErrorMessage("");
+    setFeedPostError("");
+    setApprovedPageId(null);
 
     try {
       const generated = await generateScraperScript(
@@ -144,6 +152,7 @@ export default function Scoutline_AddPage({
     try {
       const result = await runScraperPreview(scriptFileName, controller.signal);
       const posts = result.snapshot.posts ?? [];
+      setPreviewSnapshot(result.snapshot);
       setPreviewPosts(posts);
       setPreviewPostCount(result.snapshot.count ?? posts.length);
       setPreviewLog(
@@ -157,6 +166,7 @@ export default function Scoutline_AddPage({
         const message =
           error instanceof Error ? error.message : "The scraper preview failed.";
         setErrorMessage(message);
+        setPreviewSnapshot(null);
         setPreviewLog([message]);
         setPreviewStatus("error");
       }
@@ -168,6 +178,7 @@ export default function Scoutline_AddPage({
   async function handleStart() {
     if (
       !scriptFileName ||
+      !previewSnapshot ||
       previewStatus !== "done" ||
       isApproving ||
       approvalInProgress.current
@@ -178,19 +189,33 @@ export default function Scoutline_AddPage({
     cancelAgents();
     setIsApproving(true);
     setErrorMessage("");
+    setFeedPostError("");
+    let pageId = approvedPageId;
     try {
-      await onComplete({
-        ...config,
-        url: normalizeUrl(config.url.trim()),
-        name: resolveName(config),
-        description: config.description.trim(),
-        script,
-        scriptFileName,
-      });
+      if (!pageId) {
+        const page = await onComplete({
+          ...config,
+          url: normalizeUrl(config.url.trim()),
+          name: resolveName(config),
+          description: config.description.trim(),
+          script,
+          scriptFileName,
+        });
+        pageId = page.id;
+        setApprovedPageId(page.id);
+      }
+      await onPublishPreview(pageId, previewSnapshot);
       setShowApprovalConfirmation(false);
-      navigate("/monitored");
+      navigate("/feed", {
+        state: { approvalNotice: "Page approved and preview data posted to the feed." },
+      });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Could not start monitoring this page.");
+      const message = error instanceof Error ? error.message : "The approval request failed.";
+      if (pageId) {
+        setFeedPostError(message);
+      } else {
+        setErrorMessage(message);
+      }
       return;
     } finally {
       approvalInProgress.current = false;
@@ -205,8 +230,11 @@ export default function Scoutline_AddPage({
     setPreviewLog([]);
     setPreviewStatus("idle");
     setPreviewPosts([]);
+    setPreviewSnapshot(null);
     setPreviewPostCount(0);
     setErrorMessage("");
+    setFeedPostError("");
+    setApprovedPageId(null);
   }
 
   return (
@@ -269,14 +297,27 @@ export default function Scoutline_AddPage({
         {stage === 3 && (
           <StagePanel step={4} title="Approve">
             <p className="text-sm text-stone-600">
-              Approve <strong>{resolveName(config)}</strong> for monitoring?
-              The successful preview included {previewPostCount} {previewPostCount === 1 ? "post" : "posts"}.
+              {approvedPageId ? (
+                <>
+                  <strong>{resolveName(config)}</strong> is approved. Its preview contains {previewPostCount} {previewPostCount === 1 ? "post" : "posts"}.
+                </>
+              ) : (
+                <>
+                  Approve <strong>{resolveName(config)}</strong> for monitoring?
+                  The successful preview included {previewPostCount} {previewPostCount === 1 ? "post" : "posts"}.
+                </>
+              )}
             </p>
+            {feedPostError && (
+              <p role="alert" className="mt-3 text-sm text-red-700">
+                Page approved, but preview data failed to post to the feed: {feedPostError}
+              </p>
+            )}
             <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={() => setStage(2)}
-                disabled={isApproving}
+                disabled={isApproving || Boolean(approvedPageId)}
                 className="h-11 rounded-xl border border-stone-200 bg-white px-5 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Back to preview
@@ -284,10 +325,10 @@ export default function Scoutline_AddPage({
               <button
                 type="button"
                 onClick={() => setShowApprovalConfirmation(true)}
-                disabled={previewStatus !== "done" || isApproving}
+                disabled={previewStatus !== "done" || !previewSnapshot || isApproving}
                 className="h-11 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Approve
+                {approvedPageId ? "Retry feed post" : "Approve"}
               </button>
             </div>
           </StagePanel>
@@ -303,11 +344,18 @@ export default function Scoutline_AddPage({
               className="w-full max-w-md rounded-xl border border-stone-200 bg-white p-6 shadow-2xl"
             >
               <h2 id="approve-dialog-title" className="text-lg font-semibold text-stone-800">
-                Confirm approval
+                {approvedPageId ? "Retry feed post" : "Confirm approval"}
               </h2>
               <p id="approve-dialog-description" className="mt-2 text-sm text-stone-600">
-                Are you sure you want to approve this page?
+                {approvedPageId
+                  ? "The page is approved, but its preview data was not posted to the feed. Retry posting the same preview?"
+                  : "Are you sure you want to approve this page?"}
               </p>
+              {feedPostError && (
+                <p role="alert" className="mt-3 text-sm text-red-700">
+                  Page approved, but feed posting failed: {feedPostError}
+                </p>
+              )}
               {errorMessage && (
                 <p role="alert" className="mt-3 text-sm text-red-700">
                   {errorMessage}
@@ -325,10 +373,12 @@ export default function Scoutline_AddPage({
                 <button
                   type="button"
                   onClick={handleStart}
-                  disabled={isApproving || previewStatus !== "done"}
+                  disabled={isApproving || previewStatus !== "done" || !previewSnapshot}
                   className="h-10 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isApproving ? "Approving…" : "Approve"}
+                  {isApproving
+                    ? approvedPageId ? "Posting…" : "Approving…"
+                    : approvedPageId ? "Retry feed post" : "Approve"}
                 </button>
               </div>
             </section>

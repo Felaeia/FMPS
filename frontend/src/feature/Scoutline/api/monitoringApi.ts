@@ -1,4 +1,5 @@
 import type { Frequency, NewPageDraft } from "../constant/addPage";
+import type { ScraperSnapshot } from "./addPageApi";
 import type { FeedPost } from "../util/Scoutline_Feed.helpers";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://localhost:7022";
@@ -66,6 +67,16 @@ export function createMonitoredPage(draft: NewPageDraft) {
       tags: draft.tags,
     }),
   });
+}
+
+export function publishInitialPreview(pageId: string, snapshot: ScraperSnapshot) {
+  return request<MonitoredPageRecord>(
+    `/api/scoutline/monitoring/pages/${encodeURIComponent(pageId)}/preview`,
+    {
+      method: "POST",
+      body: JSON.stringify({ scrapedAt: snapshot.scrapedAt, posts: snapshot.posts }),
+    },
+  );
 }
 
 export function updateMonitoredPage(id: string, patch: MonitoredPagePatch) {

@@ -51,9 +51,24 @@ public sealed class ScoutlineMonitoringController(
             IncludeImages = request.IncludeImages,
             Tags = request.Tags.Where(tag => !string.IsNullOrWhiteSpace(tag)).Select(tag => tag.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             NextRunAt = now,
+            InitialPreviewPending = true,
         };
         store.AddPage(page);
         return Ok(page);
+    }
+
+    [HttpPost("pages/{id}/preview")]
+    public ActionResult<MonitoredPage> PublishInitialPreview(
+        string id,
+        [FromBody] ScraperSnapshotData snapshot)
+    {
+        var page = store.GetPages().FirstOrDefault(existing => existing.Id == id);
+        if (page is null) return NotFound();
+        if (snapshot.ScrapedAt == default || snapshot.Posts.Count > page.PostsPerRun)
+            return BadRequest("The preview snapshot is invalid for this page.");
+
+        var updatedPage = store.CompleteInitialPreview(id, snapshot.Posts, snapshot.ScrapedAt);
+        return updatedPage is null ? NotFound() : Ok(updatedPage);
     }
 
     [HttpPatch("pages/{id}")]

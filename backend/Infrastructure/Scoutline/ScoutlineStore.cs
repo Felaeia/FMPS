@@ -17,6 +17,7 @@ public sealed record MonitoredPage
     public bool IncludeImages { get; init; } = true;
     public List<string> Tags { get; init; } = [];
     public bool Paused { get; init; }
+    public bool InitialPreviewPending { get; init; }
     public bool IsRunning { get; init; }
     public DateTimeOffset? LastChecked { get; init; }
     public DateTimeOffset NextRunAt { get; init; } = DateTimeOffset.UtcNow;
@@ -113,7 +114,7 @@ public sealed class ScoutlineStore
         lock (gate)
         {
             var index = state.Pages.FindIndex(page =>
-                !page.Paused && !page.IsRunning && page.NextRunAt <= now);
+                !page.Paused && !page.InitialPreviewPending && !page.IsRunning && page.NextRunAt <= now);
             if (index < 0) return null;
             state.Pages[index] = state.Pages[index] with { IsRunning = true };
             Save();
@@ -128,25 +129,7 @@ public sealed class ScoutlineStore
             var index = state.Pages.FindIndex(page => page.Id == pageId);
             if (index < 0) return;
             var page = state.Pages[index];
-            foreach (var post in posts)
-            {
-                var uniqueValue = post.Url ?? post.Description.Trim();
-                if (string.IsNullOrWhiteSpace(uniqueValue)) continue;
-                var id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{pageId}:{uniqueValue}")));
-                if (state.Posts.Any(existing => existing.Id == id)) continue;
-                state.Posts.Add(new MonitoredPost
-                {
-                    Id = id,
-                    PageId = pageId,
-                    Source = page.Name,
-                    Url = post.Url,
-                    Title = post.Title,
-                    Description = post.Description,
-                    Media = page.IncludeImages ? post.Media : [],
-                    CreatedAt = scrapedAt,
-                    Tags = [.. page.Tags],
-                });
-            }
+            AddFeedPosts(page, posts, scrapedAt);
             state.Pages[index] = page with
             {
                 IsRunning = false,
@@ -155,6 +138,34 @@ public sealed class ScoutlineStore
                 LastError = null,
             };
             Save();
+        }
+    }
+
+    public MonitoredPage? CompleteInitialPreview(
+        string pageId,
+        IEnumerable<ScrapedPostData> posts,
+        DateTimeOffset scrapedAt)
+    {
+        lock (gate)
+        {
+            var index = state.Pages.FindIndex(page => page.Id == pageId);
+            if (index < 0) return null;
+            var page = state.Pages[index];
+            if (!page.InitialPreviewPending)
+            {
+                Save();
+                return page;
+            }
+            AddFeedPosts(page, posts, scrapedAt);
+            state.Pages[index] = page with
+            {
+                InitialPreviewPending = false,
+                LastChecked = scrapedAt,
+                NextRunAt = scrapedAt.Add(FrequencyInterval(page.Frequency)),
+                LastError = null,
+            };
+            Save();
+            return state.Pages[index];
         }
     }
 
@@ -190,6 +201,32 @@ public sealed class ScoutlineStore
         var temporaryPath = statePath + ".tmp";
         System.IO.File.WriteAllText(temporaryPath, JsonSerializer.Serialize(state, JsonOptions));
         System.IO.File.Move(temporaryPath, statePath, overwrite: true);
+    }
+
+    private void AddFeedPosts(
+        MonitoredPage page,
+        IEnumerable<ScrapedPostData> posts,
+        DateTimeOffset scrapedAt)
+    {
+        foreach (var post in posts)
+        {
+            var uniqueValue = post.Url ?? post.Description.Trim();
+            if (string.IsNullOrWhiteSpace(uniqueValue)) continue;
+            var id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{page.Id}:{uniqueValue}")));
+            if (state.Posts.Any(existing => existing.Id == id)) continue;
+            state.Posts.Add(new MonitoredPost
+            {
+                Id = id,
+                PageId = page.Id,
+                Source = page.Name,
+                Url = post.Url,
+                Title = post.Title,
+                Description = post.Description,
+                Media = page.IncludeImages ? post.Media : [],
+                CreatedAt = scrapedAt,
+                Tags = [.. page.Tags],
+            });
+        }
     }
 
     private sealed class StoreState

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Card } from "../../common/card";
 import { getFeedPosts } from "./api/monitoringApi";
 import {
@@ -32,6 +33,8 @@ const ImagePlaceholder = () => (
 );
 
 export default function Scoutline_Feed() {
+  const location = useLocation();
+  const approvalNotice = (location.state as { approvalNotice?: string } | null)?.approvalNotice;
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loadError, setLoadError] = useState("");
   const [filter, setFilter] = useState<FeedFilter>("All");
@@ -82,6 +85,12 @@ export default function Scoutline_Feed() {
           Auto-refreshing
         </span>
       </header>
+
+      {approvalNotice && (
+        <p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {approvalNotice}
+        </p>
+      )}
 
       <nav
         className="mt-6 flex flex-wrap gap-2"
