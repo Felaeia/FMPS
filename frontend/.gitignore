@@ -24,3 +24,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+posts/*
+!posts/.gitkeep
+repository/*
+!repository/.gitkeep
