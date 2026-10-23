@@ -2,15 +2,16 @@ import { chromium } from "playwright";
 import { existsSync } from "node:fs";
 import { writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { basename, dirname, extname, join } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 // Run with:
 // node scripts/scrape-facebook.mjs           # headless
 // node scripts/scrape-facebook.mjs --headed  # watch the browser
 
 const PAGE_URL = "https://www.facebook.com/JonkieOuanoPH";
 const MAX_POSTS = 10;
+const FRONTEND_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const OUTPUT_DIR =
-  process.env.SCRAPER_OUTPUT_DIR ?? join(dirname(fileURLToPath(import.meta.url)), "posts");
+  resolve(FRONTEND_ROOT, process.env.SCRAPER_OUTPUT_DIR ?? join("agent", "posts"));
 // Derive the base name from this script's own filename:
 //   scrape-facebook.mjs  ->  scrape-facebook
 //   scrape-facebook.js   ->  scrape-facebook
@@ -19,7 +20,7 @@ const SCRIPT_NAME = basename(SCRIPT_PATH, extname(SCRIPT_PATH));
 
 // Base output path (before the -1, -2, ... suffix is applied)
 const OUTPUT_FILE =
-  process.env.SCRAPER_OUTPUT_FILE ?? join(OUTPUT_DIR, `${SCRIPT_NAME}.json`);
+  resolve(OUTPUT_DIR, process.env.SCRAPER_OUTPUT_FILE ?? `${SCRIPT_NAME}.json`);
 // Optional logged-in session. Logged-out visitors usually hit a login wall
 // after a few posts; if this file exists, the browser reuses that session.
 const STORAGE_STATE = "fb-session.json";
@@ -112,6 +113,27 @@ function toTitle(description) {
     : firstSentence;
 }
 
+// DOM text can contain lone UTF-16 surrogates, which .NET's JSON writer rejects.
+function toWellFormedString(value) {
+  let result = "";
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(i + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        result += value[i] + value[++i];
+      } else {
+        result += "\uFFFD";
+      }
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      result += "\uFFFD";
+    } else {
+      result += value[i];
+    }
+  }
+  return result;
+}
+
 // The cookie banner and the "log in" dialog both block clicking and scrolling.
 async function dismissOverlays(page) {
   const cookie = page
@@ -201,8 +223,16 @@ try {
     posts,
   };
 
-  await mkdir(OUTPUT_DIR, { recursive: true });
-  await writeFile(OUTPUT_FILE, JSON.stringify(snapshot, null, 2));
+  await mkdir(dirname(OUTPUT_FILE), { recursive: true });
+  await writeFile(
+    OUTPUT_FILE,
+    JSON.stringify(
+      snapshot,
+      (_key, value) =>
+        typeof value === "string" ? toWellFormedString(value) : value,
+      2,
+    ),
+  );
   console.log(`Saved ${posts.length} posts to ${OUTPUT_FILE}`);
 
   if (posts.length < MAX_POSTS) {
