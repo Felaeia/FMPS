@@ -17,19 +17,19 @@ const STATUS_DOT: Record<ScriptStatus, string> = {
 };
 
 type ScriptStepProps = {
-  locked: boolean;
   script: string;
   scriptFileName: string | null;
   status: ScriptStatus;
-  onApprove: () => void;
+  onBack: () => void;
+  onContinue: () => void;
 };
 
 export default function ScriptStep({
-  locked,
   script,
   scriptFileName,
   status,
-  onApprove,
+  onBack,
+  onContinue,
 }: ScriptStepProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -41,7 +41,7 @@ export default function ScriptStep({
   }, [script, status]);
 
   return (
-    <StagePanel step={2} title="Review script" locked={locked}>
+    <StagePanel step={2} title="Review script">
       <div className="overflow-hidden rounded-2xl border border-stone-700 bg-stone-900">
         <header className="flex items-center gap-1.5 border-b border-white/10 px-3.5 py-2 text-xs text-stone-300">
           <i className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
@@ -72,14 +72,23 @@ export default function ScriptStep({
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={onApprove}
-        disabled={status !== "ready" || locked}
-        className="h-11 rounded-xl bg-orange-700 px-6 text-sm font-semibold text-white shadow-md transition hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Approve &amp; run preview
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="h-11 rounded-xl border border-stone-200 bg-white px-5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={onContinue}
+          disabled={status !== "ready"}
+          className="h-11 rounded-xl bg-orange-700 px-6 text-sm font-semibold text-white shadow-md transition hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Continue to preview
+        </button>
+      </div>
     </StagePanel>
   );
 }

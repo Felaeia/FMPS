@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import ConfigureStep from "./components/configureStep";
 import ScriptStep from "./components/scriptStep";
 import PreviewStep from "./components/previewStep";
+import StagePanel from "../../common/stagePanel";
 import {
   INITIAL_CONFIG,
   STAGES,
@@ -67,10 +68,13 @@ export default function Scoutline_AddPage({
   const [previewPosts, setPreviewPosts] = useState<ScrapedPost[]>([]);
   const [previewPostCount, setPreviewPostCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showApprovalConfirmation, setShowApprovalConfirmation] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
   const navigate = useNavigate();
 
   // Abort network work if the user starts over or leaves the flow.
   const requestAbort = useRef<AbortController | null>(null);
+  const approvalInProgress = useRef(false);
 
   function cancelAgents() {
     requestAbort.current?.abort();
@@ -125,13 +129,12 @@ export default function Scoutline_AddPage({
     }
   }
 
-  // Step 2 -> 3: run the approved repository script and show its real output.
-  async function handleApproveScript() {
+  // Step 3: run the generated repository script and show its real output.
+  async function handleRunPreview() {
     if (!scriptFileName) return;
     cancelAgents();
     const controller = new AbortController();
     requestAbort.current = controller;
-    setStage(2);
     setErrorMessage("");
     setPreviewPosts([]);
     setPreviewPostCount(0);
@@ -162,18 +165,18 @@ export default function Scoutline_AddPage({
     }
   }
 
-  // "Not quite": back to configuration so the settings can be adjusted.
-  function handleRevise() {
-    cancelAgents();
-    setStage(0);
-    setPreviewStatus("idle");
-    setPreviewLog([]);
-    setErrorMessage("");
-  }
-
   async function handleStart() {
+    if (
+      !scriptFileName ||
+      previewStatus !== "done" ||
+      isApproving ||
+      approvalInProgress.current
+    ) {
+      return;
+    }
+    approvalInProgress.current = true;
     cancelAgents();
-    if (!scriptFileName) return;
+    setIsApproving(true);
     setErrorMessage("");
     try {
       await onComplete({
@@ -184,10 +187,14 @@ export default function Scoutline_AddPage({
         script,
         scriptFileName,
       });
+      setShowApprovalConfirmation(false);
       navigate("/monitored");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not start monitoring this page.");
       return;
+    } finally {
+      approvalInProgress.current = false;
+      setIsApproving(false);
     }
     // Reset so adding another page starts from a clean form.
     setConfig(INITIAL_CONFIG);
@@ -208,8 +215,7 @@ export default function Scoutline_AddPage({
         <header>
           <h1 className="text-3xl font-extrabold text-stone-800">Add a page</h1>
           <p className="mt-1 max-w-[58ch] text-sm text-stone-400">
-            Configure, review the AI-written script, approve a one-post
-            preview, then start monitoring. All on this screen.
+            Configure the page, review its script, inspect a preview, then approve it.
           </p>
         </header>
 
@@ -224,7 +230,7 @@ export default function Scoutline_AddPage({
           </p>
         )}
 
-        <div className="grid items-start gap-5 lg:grid-cols-[5fr_6fr]">
+        {stage === 0 && (
           <ConfigureStep
             config={config}
             onChange={updateConfig}
@@ -232,28 +238,102 @@ export default function Scoutline_AddPage({
             hasScript={scriptStatus !== "idle"}
             onGenerate={handleGenerate}
           />
+        )}
 
-          <div className="flex flex-col gap-5">
+        {stage === 1 && (
             <ScriptStep
-              locked={stage < 1}
               script={script}
               scriptFileName={scriptFileName}
               status={scriptStatus}
-              onApprove={handleApproveScript}
+              onBack={() => setStage(0)}
+              onContinue={() => setStage(2)}
             />
+        )}
+
+        {stage === 2 && (
             <PreviewStep
-              locked={stage < 2}
               pageName={resolveName(config)}
               includeImages={config.includeImages}
               posts={previewPosts}
               postCount={previewPostCount}
               log={previewLog}
               status={previewStatus}
-              onApprove={handleStart}
-              onRevise={handleRevise}
+              onBack={() => setStage(1)}
+              onRunPreview={handleRunPreview}
+              onContinue={() => {
+                if (previewStatus === "done") setStage(3);
+              }}
             />
+        )}
+
+        {stage === 3 && (
+          <StagePanel step={4} title="Approve">
+            <p className="text-sm text-stone-600">
+              Approve <strong>{resolveName(config)}</strong> for monitoring?
+              The successful preview included {previewPostCount} {previewPostCount === 1 ? "post" : "posts"}.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setStage(2)}
+                disabled={isApproving}
+                className="h-11 rounded-xl border border-stone-200 bg-white px-5 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Back to preview
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowApprovalConfirmation(true)}
+                disabled={previewStatus !== "done" || isApproving}
+                className="h-11 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Approve
+              </button>
+            </div>
+          </StagePanel>
+        )}
+
+        {showApprovalConfirmation && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 p-4">
+            <section
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="approve-dialog-title"
+              aria-describedby="approve-dialog-description"
+              className="w-full max-w-md rounded-xl border border-stone-200 bg-white p-6 shadow-2xl"
+            >
+              <h2 id="approve-dialog-title" className="text-lg font-semibold text-stone-800">
+                Confirm approval
+              </h2>
+              <p id="approve-dialog-description" className="mt-2 text-sm text-stone-600">
+                Are you sure you want to approve this page?
+              </p>
+              {errorMessage && (
+                <p role="alert" className="mt-3 text-sm text-red-700">
+                  {errorMessage}
+                </p>
+              )}
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowApprovalConfirmation(false)}
+                  disabled={isApproving}
+                  className="h-10 rounded-lg border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStart}
+                  disabled={isApproving || previewStatus !== "done"}
+                  className="h-10 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isApproving ? "Approving…" : "Approve"}
+                </button>
+              </div>
+            </section>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

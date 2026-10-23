@@ -4,30 +4,30 @@ import type { PreviewStatus } from "../constant/addPage";
 import type { ScrapedPost } from "../api/addPageApi";
 
 type PreviewStepProps = {
-  locked: boolean;
   pageName: string;
   includeImages: boolean;
   posts: ScrapedPost[];
   postCount: number;
   log: string[];
   status: PreviewStatus;
-  onApprove: () => void;
-  onRevise: () => void;
+  onBack: () => void;
+  onRunPreview: () => void;
+  onContinue: () => void;
 };
 
 export default function PreviewStep({
-  locked,
   pageName,
   includeImages,
   posts,
   postCount,
   log,
   status,
-  onApprove,
-  onRevise,
+  onBack,
+  onRunPreview,
+  onContinue,
 }: PreviewStepProps) {
   return (
-    <StagePanel step={3} title="Preview & approve" locked={locked}>
+    <StagePanel step={3} title="Preview">
       <div
         role="log"
         className="mb-4 min-h-[110px] rounded-2xl bg-stone-900 p-3.5 font-mono text-xs leading-7 text-stone-200"
@@ -86,24 +86,42 @@ export default function PreviewStep({
             </p>
           )}
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={onApprove}
-              className="h-11 rounded-xl bg-orange-700 px-6 text-sm font-semibold text-white shadow-md transition hover:bg-orange-800"
-            >
-              Looks right, start monitoring
-            </button>
-            <button
-              type="button"
-              onClick={onRevise}
-              className="h-11 rounded-xl border border-stone-200 bg-white px-6 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
-            >
-              Not quite, revise
-            </button>
-          </div>
         </>
       )}
+
+      {status === "error" && (
+        <p role="alert" className="mb-4 text-sm text-red-700">
+          The preview failed. Fix the issue and run the preview again before approving.
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={status === "running"}
+          className="h-11 rounded-xl border border-stone-200 bg-white px-5 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={onRunPreview}
+          disabled={status === "running"}
+          className="h-11 rounded-xl bg-orange-700 px-6 text-sm font-semibold text-white shadow-md transition hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {status === "running" ? "Running preview…" : "Run preview"}
+        </button>
+        {status === "done" && (
+          <button
+            type="button"
+            onClick={onContinue}
+            className="h-11 rounded-xl border border-emerald-700 bg-emerald-700 px-6 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          >
+            Continue to approve
+          </button>
+        )}
+      </div>
     </StagePanel>
   );
 }

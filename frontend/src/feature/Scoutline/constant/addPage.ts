@@ -1,10 +1,8 @@
 export const FREQUENCIES = ["5 min", "15 min", "Hourly", "Daily"] as const;
 export type Frequency = (typeof FREQUENCIES)[number];
 
-// Labels for the progress pills. "Live" is reached when the page is handed
-// off to monitoring, so this screen itself only ever shows stages 0 to 2.
-export const STAGES = ["Configure", "Script", "Preview", "Live"] as const;
-export type AddPageStage = 0 | 1 | 2;
+export const STAGES = ["Configure", "Review Script", "Preview", "Approve"] as const;
+export type AddPageStage = 0 | 1 | 2 | 3;
 
 export type ScriptStatus = "idle" | "writing" | "ready" | "error";
 export type PreviewStatus = "idle" | "running" | "done" | "error";
