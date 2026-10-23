@@ -27,5 +27,5 @@ dist-ssr
 
 posts/*
 !posts/.gitkeep
-repository/*
-!repository/.gitkeep
+frontend/agent/scripts/repository/*
+!frontend/agent/scripts/repository/.gitkeep
