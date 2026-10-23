@@ -20,13 +20,17 @@ export type FeedCategory = (typeof FEED_CATEGORIES)[number];
 export const FEED_FILTERS = ["All", ...FEED_CATEGORIES] as const;
 export type FeedFilter = (typeof FEED_FILTERS)[number];
 
+export type FeedMedia =
+  | { type: "image"; url: string }
+  | { type: "video"; url: string | null; poster: string | null };
+
 export interface FeedPost {
   id: string;
   source: string; // e.g. "City Hall Updates"; also drives the avatar
   body: string;
   createdAt: string; // ISO date string, turned into "just now" / "5m ago" below
   categories: string[];
-  images?: string[];
+  media: FeedMedia[];
   url?: string;
 }
 
