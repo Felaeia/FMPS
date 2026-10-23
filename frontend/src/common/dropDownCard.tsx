@@ -30,7 +30,7 @@ export default function DropdownCard({
   const panelId = useId();
 
   return (
-    <section className="rounded-2xl border border-orange-100 bg-[#fffdf9] shadow-sm">
+    <section className="theme-surface rounded-2xl border border-orange-100 shadow-sm">
       {/* Only the header is the button: the body holds its own inputs and
           buttons, and interactive elements must not nest inside a <button>. */}
       <button

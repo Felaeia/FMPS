@@ -16,7 +16,7 @@ export default function StagePanel({
 }: StagePanelProps) {
   return (
     <section
-      className={`rounded-2xl border border-orange-100 bg-[#fffdf9] p-5 shadow-sm transition-[opacity,filter] duration-500 ${
+      className={`theme-surface rounded-2xl border border-orange-100 p-5 shadow-sm transition-[opacity,filter] duration-500 ${
         locked ? "opacity-40 saturate-50" : ""
       }`}
     >

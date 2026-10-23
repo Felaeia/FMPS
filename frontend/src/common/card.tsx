@@ -30,7 +30,7 @@ export const Card: React.FC<CardProps> = ({
   const initial = title.charAt(0).toUpperCase();
 
   return (
-    <article className="flex items-start gap-4 p-5 rounded-2xl bg-[#FFFBF5] border border-[#E9E2D0] font-sans">
+    <article className="theme-card flex items-start gap-4 p-5 rounded-2xl border font-sans">
       {/* shrink-0 keeps the avatar square when the body text is long and wraps */}
       <div
         className={`w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white font-bold text-sm shadow-sm`}
@@ -42,13 +42,13 @@ export const Card: React.FC<CardProps> = ({
           stretching the card past its container */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <h3 className="font-bold text-[15px] text-[#3E2A20]">{title}</h3>
+          <h3 className="theme-text-primary font-bold text-[15px]">{title}</h3>
           {timestamp && (
-            <span className="text-xs text-[#A89B92]">{timestamp}</span>
+            <span className="theme-text-muted text-xs">{timestamp}</span>
           )}
         </div>
 
-        <div className="mt-1 text-[15px] text-[#4A3A30]">{children}</div>
+        <div className="theme-text-secondary mt-1 text-[15px]">{children}</div>
 
         {/* Only render the tag row when there are tags, so cards without
             tags don't get an empty gap at the bottom */}

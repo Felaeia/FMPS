@@ -271,7 +271,7 @@ export default function Scoutline_AddPage({
   }
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-orange-50 via-[#fffaf5] to-[#fffaf5] p-8">
+    <div className="theme-page min-h-full p-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-5">
         <header>
           <div className="flex flex-wrap items-start justify-between gap-3">

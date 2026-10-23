@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Card } from "../../common/card";
 import { getFeedPosts } from "./api/monitoringApi";
+import { useTheme } from "../../context/ThemeContext.types";
 import {
   FEED_FILTERS,
   filterPosts,
@@ -34,6 +35,7 @@ const ImagePlaceholder = () => (
 
 export default function Scoutline_Feed() {
   const location = useLocation();
+  const { theme } = useTheme();
   const approvalNotice = (location.state as { approvalNotice?: string } | null)?.approvalNotice;
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loadError, setLoadError] = useState("");
@@ -69,18 +71,18 @@ export default function Scoutline_Feed() {
   const visiblePosts = filterPosts(posts, filter);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-[#FDEBDD] via-[#FEF6EC] to-[#FFFBF5] px-12 py-10 font-sans">
+    <div className="theme-page min-h-screen w-full px-12 py-10 font-sans">
       <header className="flex items-start justify-between">
         <div>
-          <h1 className="text-4xl font-extrabold text-[#3E2A20]">Feed</h1>
-          <p className="mt-2 text-[15px] text-[#8C7A6B]">
+          <h1 className="theme-text-primary text-4xl font-extrabold">Feed</h1>
+          <p className="theme-text-secondary mt-2 text-[15px]">
             {posts.length > 0
               ? getFeedSubtitle(posts.length, posts[0].createdAt)
               : "Posts collected from your monitored pages"}
           </p>
         </div>
 
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#E9E2D0] text-xs text-[#8C7A6B]">
+        <span className="theme-surface inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
           <span className="w-2 h-2 rounded-full bg-[#8DB89A]" />
           Auto-refreshing
         </span>
@@ -113,11 +115,10 @@ export default function Scoutline_Feed() {
                 fontSize: 12,
                 fontWeight: 500,
                 cursor: "pointer",
-                backgroundColor: isActive ? "#D95A2B" : "#FFFFFF",
-                color: isActive ? "#FFFFFF" : "#8C7A6B",
-                border: `1px solid ${isActive ? "#D95A2B" : "#E9E2D0"}`,
+                backgroundColor: isActive ? "#D95A2B" : theme === "dark" ? "#161D38" : "#FFFBF5",
+                color: isActive ? "#FFFFFF" : theme === "dark" ? "#8E9AC0" : "#8C7A6B",
+                border: `1px solid ${isActive ? "#D95A2B" : theme === "dark" ? "#273151" : "#E9E2D0"}`,
               }}
-              className="transition-colors duration-200"
             >
               {option}
             </button>
@@ -134,7 +135,7 @@ export default function Scoutline_Feed() {
         {/* A category can have zero posts, so show a message instead of a
             blank area that looks like the page failed to load. */}
         {visiblePosts.length === 0 ? (
-            <p className="text-sm text-[#8C7A6B]">
+            <p className="theme-text-secondary text-sm">
             {posts.length === 0 ? "No posts collected yet. Start monitoring a page to populate your feed." : "No posts in this category yet."}
           </p>
         ) : (

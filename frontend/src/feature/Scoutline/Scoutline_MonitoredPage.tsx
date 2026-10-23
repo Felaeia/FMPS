@@ -261,7 +261,7 @@ export default function Scoutline_MonitoredPage() {
   const liveCount = pages.filter((page) => !page.paused).length;
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-orange-50 via-[#fffaf5] to-[#fffaf5] p-8">
+    <div className="theme-page min-h-full p-8">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
         <header className="flex items-start justify-between gap-4">
           <div>

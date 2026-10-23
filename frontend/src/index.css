@@ -9,12 +9,177 @@
     "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  color: #182536;
-  background: #f2f5f9;
+  color-scheme: light;
+  --theme-app-background: #fdfbf7;
+  --theme-page-background: linear-gradient(135deg, #fff7ec 0%, #fffaf5 55%, #fffdf9 100%);
+  --theme-surface: #fffdf9;
+  --theme-card: #fffbf5;
+  --theme-control: #fff6eb;
+  --theme-border: #e9e2d0;
+  --theme-text-primary: #3e2a20;
+  --theme-text-secondary: #6e5c50;
+  --theme-text-muted: #8c7a6b;
+  --theme-danger-surface: #fff1f0;
+  --theme-danger-text: #b42318;
+  --theme-success-surface: #eaf8ef;
+  --theme-success-text: #176b3a;
+  color: var(--theme-text-primary);
+  background: var(--theme-app-background);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --theme-app-background: #0b0f1e;
+  --theme-page-background: linear-gradient(135deg, #0b0f1e 0%, #10172b 55%, #0b0f1e 100%);
+  --theme-surface: #161d38;
+  --theme-card: #11182d;
+  --theme-control: #131a33;
+  --theme-border: #273151;
+  --theme-text-primary: #e8eeff;
+  --theme-text-secondary: #b7c1db;
+  --theme-text-muted: #8e9ac0;
+  --theme-danger-surface: #3a1d2a;
+  --theme-danger-text: #ffb4ab;
+  --theme-success-surface: #17352e;
+  --theme-success-text: #a6e4bd;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  color: var(--theme-text-primary);
+  background: var(--theme-app-background);
+  transition: color 200ms ease, background-color 200ms ease;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.theme-app {
+  color: var(--theme-text-primary);
+  background: var(--theme-app-background);
+}
+
+.theme-page {
+  color: var(--theme-text-primary);
+  background: var(--theme-page-background);
+}
+
+.theme-surface {
+  color: var(--theme-text-primary);
+  background: var(--theme-surface);
+  border-color: var(--theme-border);
+}
+
+.theme-card {
+  color: var(--theme-text-primary);
+  background: var(--theme-card);
+  border-color: var(--theme-border);
+}
+
+.theme-text-primary {
+  color: var(--theme-text-primary);
+}
+
+.theme-text-secondary {
+  color: var(--theme-text-secondary);
+}
+
+.theme-text-muted {
+  color: var(--theme-text-muted);
+}
+
+.theme-tag {
+  color: var(--tag-text);
+  background-color: var(--tag-background);
+}
+
+.theme-tag-teal {
+  --tag-background: #d9f5f2;
+  --tag-text: #1e7775;
+}
+
+.theme-tag-rose {
+  --tag-background: #fcdde2;
+  --tag-text: #a8324d;
+}
+
+.theme-tag-green {
+  --tag-background: #ddf5d3;
+  --tag-text: #337c2b;
+}
+
+.theme-tag-blue {
+  --tag-background: #dce8f8;
+  --tag-text: #2f5fa8;
+}
+
+[data-theme="dark"] .theme-tag-teal {
+  --tag-background: #153c3b;
+  --tag-text: #8ce0d4;
+}
+
+[data-theme="dark"] .theme-tag-rose {
+  --tag-background: #482332;
+  --tag-text: #ffb6c7;
+}
+
+[data-theme="dark"] .theme-tag-green {
+  --tag-background: #263d2c;
+  --tag-text: #b5e8a7;
+}
+
+[data-theme="dark"] .theme-tag-blue {
+  --tag-background: #223553;
+  --tag-text: #b5d0ff;
+}
+
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] [class~="bg-white/70"] {
+  background-color: var(--theme-surface) !important;
+}
+
+[data-theme="dark"] [class~="bg-orange-50/60"],
+[data-theme="dark"] [class~="bg-orange-50"],
+[data-theme="dark"] [class~="bg-stone-50"],
+[data-theme="dark"] [class~="bg-stone-100"] {
+  background-color: var(--theme-control) !important;
+}
+
+[data-theme="dark"] .border-orange-100,
+[data-theme="dark"] .border-orange-200,
+[data-theme="dark"] .border-stone-200,
+[data-theme="dark"] [class~="border-[#E9E2D0]"] {
+  border-color: var(--theme-border) !important;
+}
+
+[data-theme="dark"] .text-stone-800,
+[data-theme="dark"] .text-stone-700,
+[data-theme="dark"] .text-stone-600 {
+  color: var(--theme-text-primary) !important;
+}
+
+[data-theme="dark"] .text-stone-500,
+[data-theme="dark"] .text-stone-400 {
+  color: var(--theme-text-muted) !important;
+}
+
+[data-theme="dark"] .bg-red-50,
+[data-theme="dark"] [class~="bg-red-50"] {
+  background-color: var(--theme-danger-surface) !important;
+}
+
+[data-theme="dark"] .text-red-700 {
+  color: var(--theme-danger-text) !important;
+}
+
+[data-theme="dark"] .bg-emerald-50,
+[data-theme="dark"] [class~="bg-emerald-50"] {
+  background-color: var(--theme-success-surface) !important;
+}
+
+[data-theme="dark"] .text-emerald-800 {
+  color: var(--theme-success-text) !important;
 }

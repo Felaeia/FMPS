@@ -1,10 +1,10 @@
 import React from "react";
 
 const tagVariants = {
-  teal: "bg-[#D9F5F2] text-[#1E9A97]",
-  rose: "bg-[#FCDDE2] text-[#C2415C]",
-  green: "bg-[#DDF5D3] text-[#3C9A2E]",
-  blue: "bg-[#DCE8F8] text-[#2F5FA8]",
+  teal: "theme-tag theme-tag-teal",
+  rose: "theme-tag theme-tag-rose",
+  green: "theme-tag theme-tag-green",
+  blue: "theme-tag theme-tag-blue",
 } as const;
 
 export type TagVariant = keyof typeof tagVariants;
